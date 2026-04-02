@@ -1,3 +1,105 @@
-body{
-    background-color: #0B0E14;
+#loginPage{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100%;
 }
+
+.loginContainer{
+    background-color: #161B22;
+    border-radius: 35px;
+    min-width: 20vw;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 10px 8px 5px rgba(0, 0, 0, 0.5);
+
+    form{
+        width: 100%;
+        #inputsContainer{
+
+
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            width: 100%;
+
+            label{
+                color:#E6EDF3;
+                font-family: 'Roboto', sans-serif;
+                width: 80%;
+                align-self: center;
+                margin: 1.5rem 0 0.5rem 0;
+            }
+            input{
+                background: rgba(139, 148, 158, 0.5);
+                width: 80%;
+                align-self: center;
+                height: 2.5rem;
+                border-radius: 0.8rem;
+                border:none;
+                box-shadow: 10px 8px 5px rgba(0, 0, 0, 0.5);
+            }
+        }
+        #checkboxContainer{
+            display: flex;
+            flex-direction: row;
+            width: 80%;
+            margin: auto;
+            input{
+                margin-top: 1rem;
+            }
+            span{
+                margin: 1rem 0 0 0.5rem;
+                color:#E6EDF3;
+                font-family: 'Roboto', sans-serif;
+            }
+        }
+        #actionButton{
+            display: flex;
+            background: linear-gradient(90deg,rgba(210, 188, 253, 1) 14%, rgba(125, 112, 151, 1) 68%);            margin: 1rem auto;
+            height: 2.5rem;
+            width: 70%;
+            border-radius: 1rem;
+            border: none;
+            box-shadow: 10px 8px 5px rgba(0, 0, 0, 0.5);
+            color:#E6EDF3;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: medium;
+            font-weight: bold;
+            margin: 1rem auto;
+        }
+
+
+        .actionLinks{
+            display: flex;
+            width: 70%;
+            flex-wrap: wrap;
+            flex-direction: row;
+            justify-content: space-between;
+            margin: 1rem auto 1rem auto;
+            a{
+                color:#8B949E;
+            }
+        }
+        .singleLink{
+            justify-content: center;
+        }
+    }
+
+    img{
+        width: 10rem;
+        margin: 1rem;
+    }
+    h4{
+        font-family: 'JetBrains Mono', monospace;
+        color: #E6EDF3;
+        text-align: center;
+    }
+    
+
+}
+

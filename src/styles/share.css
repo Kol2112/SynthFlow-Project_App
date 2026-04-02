@@ -1,31 +1,7 @@
+/* font-family: "JetBrains Mono", monospace; */
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
-p, label{
-    color: #E6EDF3;
-    font-family: "JetBrains Mono", monospace;
-}
-input{
-    background-color: #8B949E;
-    box-shadow: 10px 8px 5px #000000;
-    padding: 0.7rem;
-    width: 20vw;
-}
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
 
-/* Forms style */
-.userForm{
-    background-color: #161B22;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    width: 50vw;
-    border-radius: 30px;
-}
-.button{
-    background: linear-gradient(90deg,rgba(210, 188, 253, 1) 14%, rgba(125, 112, 151, 1) 54%);
-    font-family: "JetBrains Mono", monospace;
-    box-shadow: 10px 8px 5px #000000;
-    color: #E6EDF3;
-    width: 20vw;
-    border-radius: 30px;
-    padding: 0.7rem;
+body{
+    background-color: #0B0E14;
 }

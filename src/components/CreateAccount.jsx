@@ -1,30 +1,32 @@
 import '../styles/Login.css'
 import '../styles/share.css'
-import RecoveryPage from './RecoveryPage';
 
 import fullLogo from '../assets/fullLogo.webp'
 
-export default function Login(){
+export default function CreateAccount(){
 
     return(
         <main id='loginPage'>
             <div className='loginContainer'>
                 <img src={fullLogo} alt="Logo SynthFlow" />
-                <h4>Log in to continue</h4>
+                <h4>Create your account</h4>
                 <form action="">
                     <div id='inputsContainer'>
                         <label htmlFor="">Login</label>
+                        <input type="text" />
+                        <label htmlFor="">Name</label>
+                        <input type="text" />
+                        <label htmlFor="">Surname</label>
                         <input type="text" />
                         <label htmlFor="">Password</label>
                         <input type='password' />
                     </div>
                     <div id='checkboxContainer'>
-                        <input type="checkbox" name="remember" id="" /><span>Remember me</span>
+                        <input type="checkbox" name="remember" id="" /><span>Akceptuje regulamin</span>
                     </div>
-                    <input id='actionButton' type="submit" value="Log in" />
-                    <div className='actionLinks'>
-                        <a href='#'>Create account</a>
-                        <a href={{RecoveryPage}}>Reset password</a>
+                    <input id='actionButton' type="submit" value="Create account" />
+                    <div className='actionLinks singleLink'>
+                        <a href='#'>Back to login</a>
                     </div>
                 </form>
             </div>
