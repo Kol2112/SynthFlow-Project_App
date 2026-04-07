@@ -7,7 +7,9 @@ import fullLogo from '../assets/fullLogo.webp'
 import { useRef } from 'react';
 
 export default function Login(){
+    
     const navigate = useNavigate();
+    
     const Login = useRef('Admin');
     const Password = useRef('Admin');
     function handleLogin(event){
@@ -37,6 +39,7 @@ export default function Login(){
                     </div>
                 </form>
             </div>
+
         </main>
     )
 }
