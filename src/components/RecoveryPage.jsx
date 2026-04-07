@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 import '../styles/Login.css'
 import '../styles/share.css'
 
@@ -16,7 +18,7 @@ export default function RecoveryPage(){
                     </div>
                     <input id='actionButton' type="submit" value="Recover" />
                     <div className='singleLink actionLinks '>
-                        <a href='#'>Back to login</a>
+                        <Link to='/'>Back to login</Link>
                     </div>
                 </form>
             </div>

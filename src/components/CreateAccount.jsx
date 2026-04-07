@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 import '../styles/Login.css'
 import '../styles/share.css'
 
@@ -26,7 +28,7 @@ export default function CreateAccount(){
                     </div>
                     <input id='actionButton' type="submit" value="Create account" />
                     <div className='actionLinks singleLink'>
-                        <a href='#'>Back to login</a>
+                        <Link to='/'>Back to login</Link>
                     </div>
                 </form>
             </div>

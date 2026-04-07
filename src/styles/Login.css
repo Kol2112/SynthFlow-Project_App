@@ -35,13 +35,17 @@
                 margin: 1.5rem 0 0.5rem 0;
             }
             input{
-                background: rgba(139, 148, 158, 0.5);
+                background: rgba(139, 148, 158, 0.3);
                 width: 80%;
                 align-self: center;
                 height: 2.5rem;
                 border-radius: 0.8rem;
                 border:none;
                 box-shadow: 10px 8px 5px rgba(0, 0, 0, 0.5);
+                color: #E6EDF3;
+                font-family: 'Roboto', sans-serif;
+                padding-left: 1rem;
+                font-size: medium;
             }
         }
         #checkboxContainer{
@@ -71,6 +75,7 @@
             font-size: medium;
             font-weight: bold;
             margin: 1rem auto;
+            cursor: pointer;
         }
 
 
@@ -83,6 +88,7 @@
             margin: 1rem auto 1rem auto;
             a{
                 color:#8B949E;
+                font-family: 'Robot', sans-serif;
             }
         }
         .singleLink{
