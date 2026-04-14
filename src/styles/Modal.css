@@ -1,0 +1,43 @@
+.modalOverlay{
+    margin: auto;  
+}
+.modalWindow{
+    background-color: #161B22;
+    border-radius: 30px;
+    box-shadow: 8px 8px 5px rgba(0,0,0,0.5);
+}
+
+.modalTitle{
+    padding: 2rem;
+    color: #E6EDF3;
+    font-family: 'JetBrains Mono', monospace;
+    text-align: center;
+    font-weight:normal;
+}
+.controlButton{
+    display: flex;
+    justify-content: space-evenly;
+    .closeButton, .createButton{
+        background: rgba(139, 148, 158, 0.3);
+        box-shadow: 8px 8px 5px rgba(0,0,0,0.5);
+        width: 30%;
+        height: 2.5rem;
+        margin: 2rem;
+        border: none;
+        border-radius: 36px;
+        font-family: 'JetBrains Mono', monospace;
+        color: #E6EDF3;
+        font-size: medium;
+        cursor: pointer;
+    }
+    .closeButton:hover{
+        background: rgba(139, 148, 158, 0.4);
+        box-shadow: 6px 6px 5px rgba(0,0,0,0.5);
+    }
+    .createButton{
+        background: linear-gradient(90deg,rgba(210, 188, 253, 1) 14%, rgba(125, 112, 151, 1) 68%);
+    }
+    .createButton:hover{
+        background: linear-gradient(90deg,rgb(198, 170, 255) 14%, rgb(115, 100, 145) 68%);
+    }
+}

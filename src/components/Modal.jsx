@@ -1,18 +1,23 @@
+import {createPortal} from 'react-dom';
+
+import '../styles/Modal.css'
 export default function Modal({isOpen, onClose, title, children}){
     if (!isOpen) return null;
-    return(
-        <div className="modal-overlay">
-        <div className="modal-window">
-            <header>
-            <button onClick={onClose}>Zamknij</button>
-            <h2>{title}</h2>
-            </header>
-            
-            {/* Tutaj "wpadnie" Twój formularz lub detale zadania */}
-            <div className="modal-body">
-            {children}
+    return createPortal(
+        <div className="modalOverlay">
+            <div className="modalWindow">
+                <header>
+                    <h2 className='modalTitle'>{title}</h2>
+                </header>
+                <div className="modalBody">
+                    {children}
+                    <div className='controlButton'>
+                        <button className='closeButton' onClick={onClose}>Close</button>
+                        <button className='createButton' onClick={''}>Create</button>
+                    </div>
+                </div>
             </div>
-        </div>
-        </div>
+        </div>,
+        document.body
     )
 }

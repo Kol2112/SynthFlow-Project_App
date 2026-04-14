@@ -3,23 +3,23 @@ import Sidebar from './Sidebar.jsx';
 import Modal from './Modal.jsx'
 import '../styles/MainPage.css'
 import emptyDashboard from '../assets/emptyDashboard.svg'
-import { useState } from 'react';
 import CreateProject from './CreateProject.jsx'
+import { useState } from 'react';
 export default function MainPage(){
-    const [isCreateOpen, setCreateOpen] = useState(true);
+    const [isOpen, setIsOpen] = useState(false)
     return(
         <>
             <Navbar />
             <main>
-                {/* <Sidebar />
+                <Sidebar />
                 <div id='mainContent'>
                     <img src={emptyDashboard} alt="" />
                     <h1>It's so empty, right now...</h1>
-                </div> */}
+                </div>
 
-                <Modal isOpen={isCreateOpen} onClose={() =>setCreateOpen(false)} title='Dodaj projekt'> 
+                <Modal title='Creat project'> 
                     <CreateProject />
-                </Modal>
+                </Modal> 
             </main>
         </>
     )
