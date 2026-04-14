@@ -7,17 +7,19 @@ import CreateProject from './CreateProject.jsx'
 import { useState } from 'react';
 export default function MainPage(){
     const [isOpen, setIsOpen] = useState(false)
+
+
     return(
         <>
-            <Navbar />
+            <Navbar/>   
             <main>
-                <Sidebar />
+                <Sidebar isOpen={()=>setIsOpen(true)}/>
                 <div id='mainContent'>
                     <img src={emptyDashboard} alt="" />
                     <h1>It's so empty, right now...</h1>
                 </div>
 
-                <Modal title='Creat project'> 
+                <Modal isOpen={isOpen} onClose={()=>setIsOpen(false)} title='Create project'> 
                     <CreateProject />
                 </Modal> 
             </main>
