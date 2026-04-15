@@ -3,14 +3,57 @@ nav{
     background-color: #161B22;
     display: flex;
     justify-content: space-between;
+    align-items: center;
 
-    img{
+    .navEl{
         max-width: 10rem;
         margin: 1rem 5rem;
     }
     .profile{
         width: 2rem;
     }
+
+    .dropdown {
+    position: relative;
+    cursor: pointer;
+        .dropdownElementsContainer {
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0; 
+            
+            background: #161B22;
+            border: 1px solid #30363D;
+            border-radius: 8px;
+            padding: 0.5rem 0;
+            width: 150px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            list-style: none;
+            z-index: 1000;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .dropdownElementsContainer li {
+            padding: 0;
+            width: 100%;
+        }
+
+        .dropdownElementsContainer li a {
+            display: block;
+            padding: 0.8rem 1rem;
+            color: #C9D1D9 !important;
+            font-family: 'Roboto', sans-serif;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .dropdownElementsContainer li a:hover {
+            background-color: #1F242C;
+        }
+}
+
+
 }
 
 
@@ -22,11 +65,13 @@ aside{
     max-width: 4vw;
     flex-grow: 1;
     background-color: #161B22;
-    img{
+    img, .sidebarIcons{
         width: 3rem;
         margin: 1rem 0;
+        cursor: pointer;
     }
     .arrow{
         margin-top: auto;
+        margin-bottom: 1rem;
     }
 }

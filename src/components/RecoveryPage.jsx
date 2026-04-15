@@ -14,7 +14,7 @@ export default function RecoveryPage(){
                 <form action="">
                     <div id='inputsContainer'>
                         <label htmlFor="">Recover</label>
-                        <input type="text" />
+                        <input type="text" placeholder='Enter your email'/>
                     </div>
                     <input id='actionButton' type="submit" value="Recover" />
                     <div className='singleLink actionLinks '>

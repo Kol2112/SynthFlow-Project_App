@@ -109,3 +109,33 @@
 
 }
 
+.wrongDataContainer{
+    display: flex;
+    justify-content: center;
+    top: 1rem;
+    position: absolute;
+    background: rgb(218, 141, 141);
+    border-radius: 10px;
+    padding: 1rem 4rem;
+
+
+    opacity: 0;
+    transform: translateY(-20px);
+    animation: slideInFromTop 0.3s ease-out forwards;
+    .wrongDataEl{
+        font-family: 'JetBrains Mono', monospace;
+        color:rgb(163, 13, 13);
+    }
+}
+
+
+@keyframes slideInFromTop {
+    0%{
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    100%{
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

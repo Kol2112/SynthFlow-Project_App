@@ -14,7 +14,7 @@ export default function CreateAccount(){
                 <h4>Create your account</h4>
                 <form action="">
                     <div id='inputsContainer'>
-                        <label htmlFor="">Login</label>
+                        <label htmlFor="">Email</label>
                         <input type="text" />
                         <label htmlFor="">Name</label>
                         <input type="text" />

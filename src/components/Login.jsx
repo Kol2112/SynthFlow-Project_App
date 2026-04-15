@@ -4,9 +4,11 @@ import RecoveryPage from './RecoveryPage';
 import { Link, useNavigate } from 'react-router-dom';
 
 import fullLogo from '../assets/fullLogo.webp'
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function Login(){
+
+    const [wrongLogin, setWrongLogin] = useState(false);
     
     const navigate = useNavigate();
     
@@ -14,11 +16,23 @@ export default function Login(){
     const Password = useRef('Admin');
     function handleLogin(event){
         event.preventDefault();
-        Login.current.value === 'Admin' && Password.current.value==='Admin' ? navigate('/dashboard') : console.log('Błędne hasło')
+        Login.current.value === 'Admin' && Password.current.value==='Admin' ? navigate('/dashboard') : setWrongLogin(true);
     }
+
+    useEffect(()=>{
+        let timer;
+        if(wrongLogin){
+            timer = setTimeout(()=>{
+                setWrongLogin(false);
+            },2000)
+        }
+
+        return ()=>clearTimeout(timer);
+    },[wrongLogin])
 
     return(
         <main id='loginPage'>
+            {wrongLogin && (<div className='wrongDataContainer'><p className='wrongDataEl'>The entered login or password is inccorect!</p></div>)}
             <div className='loginContainer'>
                 <img src={fullLogo} alt="Logo SynthFlow" />
                 <h4>Log in to continue</h4>
