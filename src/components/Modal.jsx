@@ -12,7 +12,7 @@ export default function Modal({isOpen, onClose, title, children}){
                 <div className="modalBody">
                     {children}
                     <div className='controlButton'>
-                        <button className='closeButton' onClick={onClose}>Close</button>
+                        <button className='closeButton' onClick={onClose}>Cancle</button>
                         <button className='createButton' onClick={()=>{}}>Create</button>
                     </div>
                 </div>
