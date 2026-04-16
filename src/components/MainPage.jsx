@@ -4,6 +4,7 @@ import Modal from './Modal.jsx'
 import '../styles/MainPage.css'
 import emptyDashboard from '../assets/emptyDashboard.svg'
 import CreateProject from './CreateProject.jsx'
+import LatestProject from './LatestProject.jsx'
 import { useState } from 'react';
 export default function MainPage(){
     const [isOpen, setIsOpen] = useState(false)
@@ -12,8 +13,8 @@ export default function MainPage(){
     return(
         <>
             <Navbar/>   
-            <main>
-                <Sidebar isOpen={()=>setIsOpen(true)}/>
+            {/* <main> */}
+                {/* <Sidebar isOpen={()=>setIsOpen(true)}/>
                 <div id='mainContent'>
                     <img src={emptyDashboard} alt="" />
                     <h1>It's so empty, right now...</h1>
@@ -22,8 +23,9 @@ export default function MainPage(){
 
                 <Modal isOpen={isOpen} onClose={()=>setIsOpen(false)} title='Create project'> 
                     <CreateProject />
-                </Modal> 
-            </main>
+                </Modal>  */}
+                <LatestProject />
+            {/* </main> */}
         </>
     )
 }

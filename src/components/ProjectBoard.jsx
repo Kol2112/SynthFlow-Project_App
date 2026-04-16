@@ -1,22 +1,23 @@
+import '../styles/ProjectBoard.css'
 export default function ProjectBoard({projectKey, projectTitle, members, complete, date, priority
 
     
 }){
     return(
-        <div className="ProjectBoardBody">
-            <p className="ProjectKey">SNF-50</p>
-            <h3>SynthFlow</h3>
-            <div className="">
+        <div className="projectBoardBody">
+            <p className="projectKey">SNF-50</p>
+            <h3 className="projectTitle">SynthFlow</h3>
+            <div className="projectMembers">
                 <p>Members</p>
                 <p>user</p>
             </div>
-            <div className="">
+            <div className="projectPriority">
                 <p>Complete: x%</p>
 
             </div>
-            <div className="deadline">
+            <div className="dateEnd">
                 <p>calnedar</p>
-                <p>date</p>
+                <p>12-04-2026</p>
             </div>
         </div>
     );

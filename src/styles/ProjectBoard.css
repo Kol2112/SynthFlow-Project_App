@@ -1,0 +1,39 @@
+.projectBoardBody{
+    display: grid;
+    border-radius:20px;
+    background: #161B22;
+    margin: 1rem;
+    width: 25%;
+    box-shadow: 10px 8px 5px #000000;
+    grid-template-areas:
+    "key title more"
+    "members priority"
+    "avatars priorityDots"
+    "complete"
+    "completeBar"
+    "dateEnd button";
+    .projectKey{
+        background: rgba(139, 148, 158, 0.5);
+        border-radius: 10px;
+        width: 4rem;
+        text-align: center;
+        font-size: small;
+        font-weight: bold;
+    }
+    .projectTitle{
+        color: #E6EDF3;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .projectMembers, .projectPriority, .projectKey{
+        color: #E6EDF3;
+        font-family: 'Roboto', sans-serif;
+    }
+
+    .dateEnd{
+        font-family: 'Roboto';
+        color: #8B949E;
+    }
+    .dateGone{
+        color: #FF7B72 !important;
+    }
+}
