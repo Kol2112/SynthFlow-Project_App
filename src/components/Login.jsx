@@ -32,7 +32,7 @@ export default function Login(){
 
     return(
         <main id='loginPage'>
-            {wrongLogin && (<div className='wrongDataContainer'><p className='wrongDataEl'>Inserted login or password is inccorect!</p></div>)}
+            {wrongLogin && (<div className='wrongDataContainer'><p className='wrongDataEl'>Inserted login or password is incorrect!</p></div>)}
             <div className='loginContainer'>
                 <img src={fullLogo} alt="Logo SynthFlow" />
                 <h4>Log in to continue</h4>
