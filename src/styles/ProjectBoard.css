@@ -1,39 +1,143 @@
 .projectBoardBody{
-    display: grid;
-    border-radius:20px;
     background: #161B22;
+    border-radius:20px;
     margin: 1rem;
+    /* padding: 1rem; */
     width: 25%;
     box-shadow: 10px 8px 5px #000000;
-    grid-template-areas:
-    "key title more"
-    "members priority"
-    "avatars priorityDots"
-    "complete"
-    "completeBar"
-    "dateEnd button";
-    .projectKey{
+    .projectBoardContent{
+    display: grid;
+    grid-template-columns: 1fr 4fr 2fr;
+    grid-template-areas: 'keyID title more'
+                        'member . priority'
+                        'complete complete complete'
+                        'deadlineDate deadlineDate button';
+
+    }
+    [class^='projectContent']{
+        display: flex;
+        flex-direction: column;
+        color: #E6EDF3;
+        font-family: 'Roboto', sans-serif;
+        font-size: medium;
+        margin-top: 1rem;
+    }
+    [class^='item']{
+        margin:0 1rem;
+    }
+    .projectContentKey{
+        grid-area: keyID;
+        justify-self: center;
         background: rgba(139, 148, 158, 0.5);
         border-radius: 10px;
         width: 4rem;
+        padding: 0.2rem;
+        
         text-align: center;
         font-size: small;
         font-weight: bold;
+        align-self: center;
     }
-    .projectTitle{
-        color: #E6EDF3;
+    .projectContentKey:hover{
+        background: rgba(148, 158, 168, 0.5);
+        cursor:default;
+    }
+    .projectContentTitle{
+        grid-area: title;
         font-family: 'JetBrains Mono', monospace;
+        justify-self: start;
+        font-size: large;
     }
-    .projectMembers, .projectPriority, .projectKey{
-        color: #E6EDF3;
-        font-family: 'Roboto', sans-serif;
+    .projectContentMembers{
+        grid-area: member;
+        .itemAvatar{
+            margin-top: 0.5rem;
+        }
     }
-
-    .dateEnd{
-        font-family: 'Roboto';
+    .projectContentPriority{
+        grid-area: priority;
+        justify-self: end;
+        .itemDots{
+            margin-top: 0.5rem;
+        }
+    }
+    .projectContentComplete{
+        grid-area: complete;
+        .itemBar {
+            margin-top: 0.5rem;
+            height: 5px;
+            border-radius: 1rem; 
+            width: calc(100% - 2rem);
+        }
+        .itemBar::-webkit-progress-bar{
+            background-color: #8B949E;
+        }
+        .itemBar::-webkit-progress-value {
+            background: linear-gradient(90deg,rgba(210, 188, 253, 1) 14%, rgba(125, 112, 151, 1) 68%);;
+            border-radius: 1rem;
+        }
+    }
+    
+    .projectContentDate{
+        grid-area: deadlineDate;
+        flex-direction: row;
+        margin: 1rem;
         color: #8B949E;
+        .data{
+            margin-left: 0.5rem;
+        }
     }
     .dateGone{
         color: #FF7B72 !important;
     }
+
+
+
+    .dot {
+        transition: all 0.2s ease;
+        background-color: #8B949E; /* Dopasuj do koloru tekstu na karcie */
+        border-radius: 50%;
+        transition: background-color 0.2s ease;
+    }
+    .meatball-btn {
+        grid-area: more;
+        justify-self: end;
+    /* Reset stylów przycisku */
+        background: transparent;
+        border: none;
+        padding: 8px; /* Zwiększa pole dotykowe */
+        cursor: pointer;
+        
+        /* Flexbox robi magię */
+        display: flex;
+        gap: 3px;          /* Odstęp między kropkami */
+        align-items: center;
+        justify-content: center;
+
+        .dot{
+            width: 6px;
+            height: 6px;
+        }
+    }
+
+
+
+    /* Efekt po najechaniu */
+    .meatball-btn:hover .dot {
+        background-color: #adadad;
+    }
+    .priority-indicator {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        cursor: default;
+        .dot {
+            width: 0.8rem;   /* Rozmiar dla priorytetu - WIĘKSZY */
+            height: 0.8rem;
+        }
+    }
+    .priority-indicator.isLow .dot:nth-child(1) { background-color: #A5FB82; }
+    .priority-indicator.isMedium .dot:nth-child(-n+2) { background-color: #79C0FF; }
+    .priority-indicator.isHigh .dot:nth-child(-n+3) { background-color: #FFA657; }
+    .priority-indicator.isCritical .dot:nth-child(-n+4) { background-color: #FF7B72; }
 }

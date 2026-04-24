@@ -1,5 +1,22 @@
+.latestProject{
+    color: #E6EDF3;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: large;
+}
+#headerSection{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: auto;
+    padding: 2rem 5rem;
+    #horizontalLine{
+        width: 100%;
+        height: 5px;
+        background: #161B22;
+    }
+}
 .latestProjectContainer{
     display: flex;
-   flex-direction: row;
-   margin: 0 1rem;
+    flex-direction: row;
+    margin: 0 1rem;
 }
