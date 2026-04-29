@@ -2,25 +2,26 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
+    /* min-height: 100vh; */
     width: 100%;
 }
 
 .loginContainer{
-    background-color: #161B22;
-    border-radius: 35px;
-    min-width: 20vw;
     display: flex;
     flex-direction: column;
     flex-wrap: nowrap;
     justify-content: center;
     align-items: center;
+
+    background-color: #161B22;
+    
+    border-radius: 35px;
     box-shadow: 10px 8px 5px rgba(0, 0, 0, 0.5);
 
     form{
         width: 100%;
+        margin: 0 5rem;
         #inputsContainer{
-
 
             display: flex;
             flex-direction: column;
@@ -28,29 +29,36 @@
             width: 100%;
 
             label{
+                align-self: center;
+
+                width: 80%;
+                margin: 1.5rem 0 0.5rem 0;
+
                 color:#E6EDF3;
                 font-family: 'Roboto', sans-serif;
-                width: 80%;
-                align-self: center;
-                margin: 1.5rem 0 0.5rem 0;
             }
             input{
-                background: rgba(139, 148, 158, 0.3);
-                width: 80%;
                 align-self: center;
+
+                background: rgba(139, 148, 158, 0.3);
+
+                width: 80%;
                 height: 2.5rem;
-                border-radius: 0.8rem;
-                border:none;
-                box-shadow: 10px 8px 5px rgba(0, 0, 0, 0.5);
-                color: #E6EDF3;
-                font-family: 'Roboto', sans-serif;
                 padding-left: 1rem;
+                
+                color: #E6EDF3;
                 font-size: medium;
+                font-family: 'Roboto', sans-serif;
+                
+                border:none;
+                border-radius: 0.8rem;
+                box-shadow: 10px 8px 5px rgba(0, 0, 0, 0.5);
             }
         }
         #checkboxContainer{
             display: flex;
             flex-direction: row;
+
             width: 80%;
             margin: auto;
             input{
@@ -58,34 +66,39 @@
             }
             span{
                 margin: 1rem 0 0 0.5rem;
+
                 color:#E6EDF3;
                 font-family: 'Roboto', sans-serif;
             }
         }
         #actionButton{
             display: flex;
+
             background: linear-gradient(90deg,rgba(210, 188, 253, 1) 14%, rgba(125, 112, 151, 1) 68%);            margin: 1rem auto;
+            margin: 1rem auto;
             height: 2.5rem;
             width: 70%;
-            border-radius: 1rem;
-            border: none;
-            box-shadow: 10px 8px 5px rgba(0, 0, 0, 0.5);
+            
             color:#E6EDF3;
-            font-family: 'JetBrains Mono', monospace;
             font-size: medium;
+            font-family: 'JetBrains Mono', monospace;
             font-weight: bold;
-            margin: 1rem auto;
             cursor: pointer;
+            
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 10px 8px 5px rgba(0, 0, 0, 0.5);
         }
 
 
         .actionLinks{
             display: flex;
-            width: 70%;
             flex-wrap: wrap;
             flex-direction: row;
             justify-content: space-between;
-            margin: 1rem auto 1rem auto;
+
+            width: 70%;
+            margin: 1rem auto;
             a{
                 color:#8B949E;
                 font-family: 'Robot', sans-serif;
@@ -112,8 +125,8 @@
 .wrongDataContainer{
     display: flex;
     justify-content: center;
-    top: 1rem;
     position: absolute;
+    top: 1rem;
     background: rgb(218, 141, 141);
     border-radius: 10px;
     padding: 1rem 4rem;
@@ -137,5 +150,20 @@
     100%{
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+
+@media (max-width: 375px){
+    .loginContainer{
+        form{
+            .actionLinks{
+                flex-direction: column;
+                align-items: center;
+                a{
+                    margin: 0.5rem 0;
+                }
+            }
+        }
     }
 }

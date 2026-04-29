@@ -3,3 +3,13 @@
     margin: 0;
     padding: 0;
 }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  /* Zapobiega skalowaniu widoku przez przeglądarkę */
+  min-width: 100%; 
+}

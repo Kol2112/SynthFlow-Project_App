@@ -1,0 +1,16 @@
+#FABAddButton{
+    background: linear-gradient(90deg,rgba(210, 188, 253, 1) 14%, rgba(125, 112, 151, 1) 68%);            margin: 1rem auto;
+    position: absolute;
+    right: 2rem;
+    bottom: 2rem;
+    padding: 1rem;
+
+    color: #E6EDF3;
+    border-radius: 1rem;
+    border: 2px solid #E6EDF3;
+    svg{
+        text-align: center;
+        vertical-align: middle;
+        font-size: 2rem;
+    }
+}

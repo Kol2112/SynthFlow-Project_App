@@ -20,3 +20,14 @@ main{
         text-shadow: 8px 8px 5px rgba(0,0,0,0.5);
     }
 }
+
+@media(max-width:768px){
+    #mainContent{
+        img{
+            width: 15rem;
+        }
+        h1{
+            font-size: larger;
+        }
+    }
+}
