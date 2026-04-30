@@ -1,13 +1,16 @@
 .createProject{
     display: flex;
     width: 100%;
+    
     color: #E6EDF3;
     font-family: 'Roboto', sans-serif;
     .leftColumn{
         display: flex;
         flex-direction: column;
+        
         margin: 0 2rem 0 5rem;
     }
+    
     .rightColumn{
         display: flex;
         flex-direction: column;
@@ -15,16 +18,23 @@
         margin: 0 5rem 0 2rem;
 
         .projectPriorityButtons{
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+            align-items: center;
             button{
-                border-radius: 5px;
                 background: rgba(139, 148, 158, 0.3);
-                color: #E6EDF3;
-                font-family: 'Roboto', sans-serif;
                 padding: 0.2rem 1rem;
-                border: none;
                 margin: 0 0.2rem;
+        
+                border: none;
+                border-radius: 5px;
                 box-shadow: 8px 8px 5px rgba(0,0,0,0.5);
+        
+                color: #E6EDF3;
                 cursor: pointer;
+                font-family: 'Roboto', sans-serif;
             }
             button:hover, .buttonActive{
                 background: rgb(191, 145, 255, 0.5);
@@ -40,15 +50,17 @@
 
     input, textarea{
         background: rgba(139, 148, 158, 0.3);
+        margin-top: 0.3rem;
+        padding: 0.8rem;
+        
+        overflow:hidden;
+        resize: none;
+        
         border: none;
+        border-radius: 20px;
         color: #8B949E;
         font-family: 'Roboto', sans-serif;
-        border-radius: 20px;
         box-shadow: 8px 8px 5px rgba(0,0,0,0.5);
-        padding: 0.8rem;
-        resize: none;
-        overflow:hidden;
-        margin-top: 0.3rem;
     }
     input{
         width: 15rem;
@@ -66,5 +78,52 @@
         width: 3px;
         height: auto;
         border-radius: 100px;
+    }
+
+
+    @media(max-width:799px){
+        flex-direction: column;
+        width: 80vw;
+        .leftColumn{
+            margin: 1rem 3rem;
+        }
+
+        #halfLine{
+            display: none;
+        }
+        .rightColumn{
+            margin: 1rem 3rem;
+            .projectPriorityButtons{
+                margin: 1rem 0;
+                button{
+                    width: 20%;
+                }
+            }
+        }
+        input{
+        width: 100%;
+        }
+        #projKey{
+            width: 5rem;
+        }
+    }
+
+    @media(max-width:599px){
+        width: 90vw;
+        .leftColumn,.rightColumn{
+            margin: 1rem 1.5rem;
+            .projectPriorityButtons{
+                flex-direction: column;
+                button{
+                    width: 80%;
+                    height: 2rem;
+                    margin: 0.5rem 0;
+                    border-radius: 20rem;
+                }
+            } 
+        }
+    }
+    @media(max-width:270px){
+        width: 100%;
     }
 }

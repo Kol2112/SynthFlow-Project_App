@@ -26,7 +26,7 @@ export default function MainPage(){
                     <CreateProject />
                 </Modal> 
                 {/* <LatestProject /> */}
-                <FABADDButton />
+                <FABADDButton isOpen={()=>setIsOpen(true)}/>
             </main>
         </>
     )

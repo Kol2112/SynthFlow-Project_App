@@ -9,13 +9,13 @@ export default function Modal({isOpen, onClose, title, children}){
                 <header>
                     <h2 className='modalTitle'>{title}</h2>
                 </header>
-                {/* <div className="modalBody">
+                <div className="modalBody">
                     {children}
                     <div className='controlButton'>
                         <button className='closeButton' onClick={onClose}>Cancle</button>
                         <button className='createButton' onClick={()=>{}}>Create</button>
                     </div>
-                </div> */}
+                </div>
             </div>
         </div>,
         document.getElementById('modal')
