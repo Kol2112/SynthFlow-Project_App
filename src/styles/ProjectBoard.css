@@ -57,9 +57,6 @@
     .projectContentPriority{
         grid-area: priority;
         justify-self: end;
-        .itemDots{
-            margin-top: 0.5rem;
-        }
     }
     .projectContentComplete{
         grid-area: complete;
@@ -95,7 +92,7 @@
 
     .dot {
         transition: all 0.2s ease;
-        background-color: #8B949E; /* Dopasuj do koloru tekstu na karcie */
+        background-color: #8B949E;
         border-radius: 50%;
         transition: background-color 0.2s ease;
     }
@@ -126,18 +123,4 @@
     .meatball-btn:hover .dot {
         background-color: #adadad;
     }
-    .priority-indicator {
-        display: flex;
-        gap: 4px;
-        align-items: center;
-        cursor: default;
-        .dot {
-            width: 0.8rem;   /* Rozmiar dla priorytetu - WIĘKSZY */
-            height: 0.8rem;
-        }
-    }
-    .priority-indicator.isLow .dot:nth-child(1) { background-color: #A5FB82; }
-    .priority-indicator.isMedium .dot:nth-child(-n+2) { background-color: #79C0FF; }
-    .priority-indicator.isHigh .dot:nth-child(-n+3) { background-color: #FFA657; }
-    .priority-indicator.isCritical .dot:nth-child(-n+4) { background-color: #FF7B72; }
 }

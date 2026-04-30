@@ -71,7 +71,7 @@ aside{
     display: flex;
     flex-direction: column;
     align-items: center;
-    flex-grow: 1;
+    /* flex-grow: 1; */
     background-color: #161B22;
 
     transition: width 0.3s ease;

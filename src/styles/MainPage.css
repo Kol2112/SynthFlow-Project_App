@@ -2,7 +2,11 @@ main{
     display: flex;
     flex-grow: 1;
 }
-
+.contentPanels{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
 #mainContent{
     display: flex;
     justify-content: center;

@@ -1,0 +1,24 @@
+.priorityItemDots{
+        margin-top: 0.5rem;
+
+    .prorityDot {
+        transition: all 0.2s ease;
+        background-color: #8B949E; /* Dopasuj do koloru tekstu na karcie */
+        border-radius: 50%;
+        transition: background-color 0.2s ease;
+    }
+}
+.priority-indicator {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    cursor: default;
+    .prorityDot {
+        width: 0.8rem;
+        height: 0.8rem;
+    }
+}
+.priority-indicator.isLow .prorityDot:nth-child(1) { background-color: #A5FB82; }
+.priority-indicator.isMedium .prorityDot:nth-child(-n+2) { background-color: #79C0FF; }
+.priority-indicator.isHigh .prorityDot:nth-child(-n+3) { background-color: #FFA657; }
+.priority-indicator.isCritical .prorityDot:nth-child(-n+4) { background-color: #FF7B72; }
