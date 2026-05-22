@@ -1,0 +1,5 @@
+fastapi[standard]      # FastAPI wraz z serwerem Uvicorn do uruchamiania aplikacji
+sqlalchemy>=2.0.0      # ORM (koniecznie wersja 2.0+, która ma świetne wsparcie dla async)
+psycopg2[binary]             # Bardzo szybki, asynchroniczny sterownik dla PostgreSQL
+pydantic-settings      # Przydatne do bezpiecznego zarządzania zmiennymi środowiskowymi (np. DATABASE_URL)
+alembic                # Narzędzie do migracji bazy danych (must-have, wyjaśniam niżej)
