@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from 'react-router-dom';
 import { MdOutlineAccountCircle } from "react-icons/md";
-import logo from '../assets/fullLogo.webp'
+import logo from '../assets/fullLogo.webp';
 
 import '../styles/Navbar.css'
 export default function Navbar(){

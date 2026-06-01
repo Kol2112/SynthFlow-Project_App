@@ -23,8 +23,8 @@ export default function MainPage(){
                     <CreateProject />
                 </Modal>
                 <div className='contentPanels'>
-                    <PanelView headerTitle={'Latest Project'} contnent={<LatestProject />}/>
-                    <PanelView headerTitle={'Upcoming Tasks'} contnent={<ComingTasks />}/>
+                    <PanelView headerTitle={'Latest Project'} content={<LatestProject />}/>
+                    <PanelView headerTitle={'Upcoming Tasks'} content={<ComingTasks />}/>
                 </div> 
                 <FABADDButton isOpen={()=>setIsOpen(true)}/>
             </main>
