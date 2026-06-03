@@ -7,8 +7,8 @@ from typing import Optional
 class UserRegister(BaseModel):
     email:EmailStr
     password: str = Field(..., min_length=8, description = "Hasło musi mieć minimum 8 znaków")
-    name: str = Field(...,min_length=2, max_length=50)
-    surname: str = Field(..., min_length=50)
+    name: str = Field(..., min_length=2, max_length=50)
+    surname: str = Field(..., min_length=2, max_length=50)
     birth_date: Optional[datetime] = None
 
 #Schemat logowania
@@ -29,3 +29,7 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TokenResponse(BaseModel):
+    access_token:str
+    token_type:str

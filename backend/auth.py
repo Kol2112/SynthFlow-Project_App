@@ -3,7 +3,7 @@ from typing import Optional
 from passlib.context import CryptContext
 import jwt
 
-pwd_context = CryptContext(schemes=["bcrypt"], depracated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 SECRET_KEY = 'HAS'
 ALGORITHM = "HS256"

@@ -1,5 +1,24 @@
-fastapi[standard]      # FastAPI wraz z serwerem Uvicorn do uruchamiania aplikacji
-sqlalchemy>=2.0.0      # ORM (koniecznie wersja 2.0+, która ma świetne wsparcie dla async)
-psycopg2[binary]             # Bardzo szybki, asynchroniczny sterownik dla PostgreSQL
-pydantic-settings      # Przydatne do bezpiecznego zarządzania zmiennymi środowiskowymi (np. DATABASE_URL)
-alembic                # Narzędzie do migracji bazy danych (must-have, wyjaśniam niżej)
+# requirements.txt
+
+# Mój główny framework i serwer produkcyjny
+fastapi==0.111.0
+uvicorn==0.30.1
+
+# Obsługa bazy danych PostgreSQL oraz systemu ORM
+sqlalchemy>=2.0.36
+psycopg2-binary>=2.9.10
+
+# Zarządzanie migracjami struktury bazy danych
+alembic==1.13.1
+
+# Bezpieczeństwo: Haszowanie haseł algorytmem bcrypt
+passlib[bcrypt]==4.0.1
+
+# Bezpieczeństwo: Generowanie i weryfikacja tokenów sesji JWT
+pyjwt==2.8.0
+
+# Obsługa formularzy i przesyłania plików przez API (np. przy logowaniu)
+python-multipart==0.0.9
+
+# Walidacja danych i obsługa formatów e-mail w schematach Pydantic
+pydantic[email]>=2.10.0
