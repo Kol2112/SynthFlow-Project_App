@@ -5,8 +5,10 @@ import '../styles/Login.css'
 import '../styles/share.css'
 
 import { authService } from './utils/api';
-import RecoveryPage from './RecoveryPage';
 import fullLogo from '../assets/fullLogo.webp'
+
+import RecoveryPage from './RecoveryPage.jsx';
+import ErrorMsg from './utils/ErrorMsg.jsx';
 
 export default function Login(){
     const data = {
@@ -51,6 +53,7 @@ export default function Login(){
 
     return(
         <main id='loginPage'>
+            {wrongLogin && <ErrorMsg errorMsg ={'Inserted login or password is incorrect!'} />}
             <div className='loginContainer'>
                 <img src={fullLogo} alt="Logo SynthFlow" />
                 <h4>Log in to continue</h4>

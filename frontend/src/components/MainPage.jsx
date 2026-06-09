@@ -18,14 +18,14 @@ export default function MainPage(){
             <main>
                 <Sidebar isOpen={()=>setIsOpen(true)}/>
 
-                {/* <EmptyDashboard /> */}
+                <EmptyDashboard />
                 <Modal isOpen={isOpen} onClose={()=>setIsOpen(false)} title='Create project'> 
                     <CreateProject />
                 </Modal>
-                <div className='contentPanels'>
+                {/* <div className='contentPanels'>
                     <PanelView headerTitle={'Latest Project'} content={<LatestProject />}/>
                     <PanelView headerTitle={'Upcoming Tasks'} content={<ComingTasks />}/>
-                </div> 
+                </div>  */}
                 <FABADDButton isOpen={()=>setIsOpen(true)}/>
             </main>
         </>

@@ -55,7 +55,7 @@ nav {
             z-index: 1000;
         }
 
-        .dropdownElementsContainer li a {
+        .dropdownElementsContainer li {
             display: block;
             padding: 0.8rem 1rem;
             color: #C9D1D9 !important;

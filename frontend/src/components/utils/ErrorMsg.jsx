@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
-export default function ErrorMsg(){
-    
+export default function ErrorMsg({errorMsg}){
+    const [wrongData, setWrongData] = useState(errorMsg)
     useEffect(()=>{
             let timer;
-            if(wrongLogin){
+            if(wrongData){
                 timer = setTimeout(()=>{
-                    setWrongLogin(false);
+                    setWrongData(false);
                 },2000)
             }
     
             return ()=>clearTimeout(timer);
-        },[wrongLogin])
+        },[wrongData])
 
     return(
-        <span>{wrongLogin && (<div className='wrongDataContainer'><p className='wrongDataEl'>Inserted login or password is incorrect!</p></div>)}</span>
+        <div className='wrongDataContainer'><p className='wrongDataEl'>{errorMsg}</p></div>
     )
 
 }

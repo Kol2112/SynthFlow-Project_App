@@ -12,8 +12,9 @@ psycopg2-binary>=2.9.10
 alembic==1.13.1
 
 # Bezpieczeństwo: Haszowanie haseł algorytmem bcrypt
-passlib[bcrypt]==4.0.1
+bcrypt==4.0.1
 
+passlib
 # Bezpieczeństwo: Generowanie i weryfikacja tokenów sesji JWT
 pyjwt==2.8.0
 
@@ -22,3 +23,4 @@ python-multipart==0.0.9
 
 # Walidacja danych i obsługa formatów e-mail w schematach Pydantic
 pydantic[email]>=2.10.0
+fastapi-mail

@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+
+import ErrorMsg from './utils/ErrorMsg.jsx';
+
 import '../styles/Login.css';
 import '../styles/share.css';
 
@@ -15,9 +18,8 @@ export default function CreateAccount(){
         birth_date: ''
     }
     const [formData, setFormData] = useState(rawData);
-
     const [errMsg, setErrMsg] = useState('');
-    const [successMsg, setSuccessMsg] = useState('');
+    // const [successMsg, setSuccessMsg] = useState('');
 
     const handleChange = (e) =>{
         const {name, value} = e.target;
@@ -30,7 +32,7 @@ export default function CreateAccount(){
     const handleSubmit = async(e) =>{
         e.preventDefault();
         setErrMsg('');
-        setSuccessMsg('');
+        // setSuccessMsg('');
 
         const payload = {
             ...formData,
@@ -39,7 +41,7 @@ export default function CreateAccount(){
 
         try{
             const data = await authService.register(payload);
-            setSuccessMsg(data.message);
+            // setSuccessMsg(data.message);
 
             setFormData(rawData)
         }
@@ -60,6 +62,7 @@ export default function CreateAccount(){
     }
     return(
         <main id='loginPage'>
+            {errMsg && <ErrorMsg errorMsg ={'Inserted data is incorrect!'} />}
             <div className='loginContainer'>
                 <img src={fullLogo} alt="Logo SynthFlow" />
                 <h4>Create your account</h4>
@@ -79,8 +82,6 @@ export default function CreateAccount(){
                         <input type="checkbox" name="remember" id="" /><span>Akceptuje regulamin</span>
                     </div>
                     <button id='actionButton' type="submit">Create account</button>
-                    {errMsg && <p className='error'>{errMsg}</p>}
-                    {successMsg && <p className='success'>{successMsg}</p>}
                     <div className='actionLinks singleLink'>
                         <Link to='/'>Back to login</Link>
                     </div>
