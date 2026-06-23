@@ -13,7 +13,7 @@ export default function Modal({isOpen, onClose, title, children}){
                     {children}
                     <div className='controlButton'>
                         <button className='closeButton' onClick={onClose}>Cancel</button>
-                        <button className='createButton' onClick={()=>{}}>Create</button>
+                        <button className='createButton' type="submit" form="createProjectForm">Create</button>
                     </div>
                 </div>
             </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 
@@ -7,9 +7,9 @@ export default function ActivationPage() {
     const token = searchParams.get('token');
     const navigate = useNavigate();
     
-    const [status, setStatus] = useState('activating'); // 'activating', 'success', 'error'
+    const [status, setStatus] = useState('activating');
     const [msg, setMsg] = useState('Aktywuję Twoje konto, proszę czekać...');
-
+    const  hasRequested = useRef(false);
     useEffect(() => {
         if (!token) {
             setStatus('error');
@@ -17,12 +17,13 @@ export default function ActivationPage() {
             return;
         }
 
-        // Wysyłamy token na backend (zwróć uwagę na port 8000)
+        if(hasRequested.current) return;
+        hasRequested.current = true;
+
         axios.post(`http://localhost:8000/api/auth/activate?token=${token}`)
             .then(res => {
                 setStatus('success');
                 setMsg(res.data.message || 'Twoje konto zostało pomyślnie aktywowane!');
-                // Po 3 sekundach automatycznie przekieruj do strony logowania
                 setTimeout(() => navigate('/'), 3000);
             })
             .catch(err => {
@@ -31,7 +32,6 @@ export default function ActivationPage() {
             });
     }, [token, navigate]);
 
-    // Ostylowanie dopasuj do wyglądu reszty Twojej aplikacji (np. podmieniając klasy)
     return (
         <main style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#1a1a1a', color: '#fff', fontFamily: 'Arial' }}>
             <div style={{ textAlign: 'center', padding: '40px', border: '1px solid #333', borderRadius: '8px', backgroundColor: '#242424', maxWidth: '400px', width: '100%' }}>

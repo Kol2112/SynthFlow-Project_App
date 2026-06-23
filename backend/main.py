@@ -10,7 +10,7 @@ import uuid
 import models, schemas
 
 from database import get_db
-from auth import get_password_hash, verify_password, create_access_token
+from auth import get_password_hash, verify_password, create_access_token, get_current_user
 app = FastAPI()
 
 origins = [
@@ -191,15 +191,52 @@ def reset_password(token: str, new_password: str, db: Session = Depends(get_db))
 @app.post("/api/auth/activate")
 def activate_account(token: str, db: Session = Depends(get_db)):
     if token not in activation_tokens:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inavlid or expired activation token.")
+        raise HTTPException(
+            status_code=400,
+            detail="Inavlid or expired activation token."
+        )
+    
     email = activation_tokens[token]
-    user = get_user_by_email(db, email)
+    user = db.query(models.User).filter(models.User.email == email).first()
+    
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="User not found."
+        )
     
     user.is_active = True
     db.commit()
+
     del activation_tokens[token]
-    return{
-        "message":"Account activated successfully! You can now log in."
-    }
+    
+    return {"message": "Account activated successfully! You can now log in."}
+
+@app.post("/api/projects", response_model=schemas.ProjectResponse, status_code=status.HTTP_201_CREATED)
+def create_new_project(project_data: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    existing_key = db.query(models.Project).filter(models.Project.project_key == project_data.project_key).first()
+    if existing_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Project with this key already exists."
+        )
+        
+    new_project = models.Project(
+        name=project_data.name,
+        project_key=project_data.project_key,
+        desc=project_data.desc, 
+        deadline=project_data.deadline,
+        priority=project_data.priority,
+        owner_id=current_user.id
+    )
+    
+    db.add(new_project)
+    db.commit()
+    db.refresh(new_project)
+
+    return new_project
+
+@app.get("/api/projects", response_model=list[schemas.ProjectResponse])
+def get_user_projects(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    projects = db.query(models.Project).filter(models.Project.owner_id == current_user.id).all()
+    return projects

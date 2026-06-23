@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, date
+from typing import Optional, List
 
 #Schemat użytkownika
 
@@ -33,3 +33,24 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token:str
     token_type:str
+
+class ProjectCreate(BaseModel):
+    name: str
+    project_key: str
+    desc: Optional[str] = None
+    deadline: Optional[date] = None
+    priority: str = "Low"
+    tags: Optional[str] = None
+
+class ProjectResponse(BaseModel):
+    id: int
+    name: str
+    project_key: str
+    sesc: Optional[str] = None
+    deadline: Optional[date] = None
+    priority: str
+    tags: Optional[str] = None
+    owner_id: int
+
+    class Config:
+        from_attributes = True
