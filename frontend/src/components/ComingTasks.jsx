@@ -1,4 +1,4 @@
-import PriorityDots from './PriorityDots.jsx'
+import PriorityDots from './utils/PriorityDots.jsx'
 import '../styles/ComingTasks.css'
 
 export default function ComingTasks(){

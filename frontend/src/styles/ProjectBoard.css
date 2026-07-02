@@ -99,15 +99,13 @@
     .meatball-btn {
         grid-area: more;
         justify-self: end;
-    /* Reset stylów przycisku */
         background: transparent;
         border: none;
-        padding: 8px; /* Zwiększa pole dotykowe */
+        padding: 8px;
         cursor: pointer;
         
-        /* Flexbox robi magię */
         display: flex;
-        gap: 3px;          /* Odstęp między kropkami */
+        gap: 3px;
         align-items: center;
         justify-content: center;
 
@@ -119,7 +117,6 @@
 
 
 
-    /* Efekt po najechaniu */
     .meatball-btn:hover .dot {
         background-color: #adadad;
     }

@@ -31,8 +31,9 @@ export default function Navbar(){
                 <MdOutlineAccountCircle onClick={()=>setIsOpen(!isOpen)} size={'3rem'} color={'#8B949E'} className="navEl"/>
                 {isOpen && (
                     <ul className="dropdownElementsContainer">
-                        <li key={1}>Setting</li>
-                        <li key={2} onClick={handleLogout}>Logout</li>
+                        <li key={1}>Account</li>
+                        <li key={2}>Setting</li>
+                        <li key={3} onClick={handleLogout}>Logout</li>
                     </ul>
                 )}
             </div>

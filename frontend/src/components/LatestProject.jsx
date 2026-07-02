@@ -2,9 +2,6 @@ import '../styles/LatestProject.css'
 import ProjectBoard from "./ProjectBoard.jsx";
 
 export default function LatestProject({ projects }) {
-    if (!projects || projects.length === 0) {
-        return <p style={{ color: '#8B949E' }}>No projects available.</p>;
-    }
 
     return (
         <div className="latestProjectContainer">

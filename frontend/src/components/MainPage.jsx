@@ -4,7 +4,7 @@ import Modal from './Modal.jsx'
 import '../styles/MainPage.css'
 import CreateProject from './CreateProject.jsx'
 import LatestProject from './LatestProject.jsx'
-import FABADDButton from './FABAddButton.jsx';
+import FABADDButton from './utils/FABAddButton.jsx';
 import PanelView from './PanelView.jsx';
 import { useEffect, useState } from 'react';
 import EmptyDashboard from './emptyDashboard.jsx';
@@ -50,7 +50,7 @@ export default function MainPage(){
                 ): (
                     <div className='contentPanels'>
                         <PanelView headerTitle={'Latest Project'} content={<LatestProject projects={projects}/>}/>
-                        <PanelView headerTitle={'Upcoming Tasks'} content={<ComingTasks />}/>
+                        {/* <PanelView headerTitle={'Upcoming Tasks'} content={<ComingTasks />}/> */}
                     </div> 
                 )}
 
