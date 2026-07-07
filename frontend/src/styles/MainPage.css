@@ -2,6 +2,12 @@ main{
     display: flex;
     flex-grow: 1;
 }
+.dynamicPageContent {
+    width: 100%;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+}
 .contentPanels{
     display: flex;
     flex-direction: column;

@@ -1,40 +1,64 @@
-import Login from "./components/Login"
-import MainPage from "./components/MainPage"
-import RecoveryPage from "./components/RecoveryPage"
+import Login from "./components/Login.jsx"
+import MainPage from "./components/MainPage.jsx"
+import DashboardHome from "./components/utils/DashboardHome.jsx" 
+import RecoveryPage from "./components/RecoveryPage.jsx"
 import CreateAccount from "./components/CreateAccount.jsx"
 import ActivationPage from './components/ActivationPage';
 import ProjectDetailsPage from "./components/ProjectDetailsPage.jsx";
-import { BrowserRouter, Route, Routes } from "react-router-dom"
-import { Navigate } from 'react-router-dom';
-function App() {
- const ProtectedRoute = ({ children }) => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        return <Navigate to="/" replace />;
-    }
-    
-    return children;
-};
-  return(
-    <>
-      <Routes>
-        <Route path='/' element={<Login />} />
-        <Route path='/register' element={<CreateAccount />} />
-        <Route path='/recovery' element={<RecoveryPage />} />
-        <Route path="/activate" element={<ActivationPage />} />
-        <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <MainPage />
-              </ProtectedRoute>
-            } 
-          /> 
-        <Route path="/project/:projectId" element= {<ProjectDetailsPage />}/>
-      </Routes>
-    </>
+import { Route, Routes, Navigate } from "react-router-dom"
 
-  )
+function App() {
+    const ProtectedRoute = ({ children }) => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            return <Navigate to="/" replace />;
+        }
+        return children;
+    };
+
+    const PublicOnlyRoute = ({children}) =>{
+        const token = localStorage.getItem('token');
+        if(token){
+            return <Navigate to="/dashboard" replace/>;
+        }
+        return children;
+    }
+
+    return (
+        <Routes>
+            <Route path='/' element={
+                <PublicOnlyRoute>
+                    <Login />
+                </PublicOnlyRoute>
+                } />
+            <Route path='/register' element={
+                <PublicOnlyRoute>
+                    <CreateAccount />
+                </PublicOnlyRoute>
+                } />
+            <Route path='/recovery' element={
+                <PublicOnlyRoute>
+                    <RecoveryPage />
+                </PublicOnlyRoute>
+                } />
+            <Route path="/activate" element={
+                <PublicOnlyRoute>
+                    <ActivationPage />
+                </PublicOnlyRoute>
+                } />
+            
+            <Route path="/dashboard" element={
+                <ProtectedRoute>
+                    <MainPage />
+                </ProtectedRoute>
+            }>
+                <Route index element={<DashboardHome />} />
+                <Route path="project/:projectKey" element={<ProjectDetailsPage />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+    )
 }
 
 export default App

@@ -26,7 +26,7 @@ export default function Navbar(){
     },[])
     return(
         <nav>
-            <img src={logo} alt='Logo' className="navEl"></img>
+            <Link to={'/dashboard'} className="navEl"><img src={logo} alt='Logo'></img></Link>
             <div className="dropdown" ref={dropdownRef}>
                 <MdOutlineAccountCircle onClick={()=>setIsOpen(!isOpen)} size={'3rem'} color={'#8B949E'} className="navEl"/>
                 {isOpen && (

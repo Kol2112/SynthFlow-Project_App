@@ -1,11 +1,468 @@
-import { IoAddCircle } from "react-icons/io5";
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { IoEllipsisHorizontal } from "react-icons/io5";
+import { FaRegCalendar } from "react-icons/fa";
 
-export default function ProjectDetailsPage(){
+import Modal from './Modal.jsx';
+import PanelView from './PanelView.jsx';
+import CreateTask from './CreateTask.jsx';
 
-    return(
-        <div>
-            <header></header>
-            <div><IoAddCircle color="red"/></div>
-        </div>
-    )
+import '../styles/ProjectDetailsPage.css';
+
+export default function ProjectDetailsPage() {
+    const {projectKey: urlProjectKey} = useParams();
+    const navigate = useNavigate();
+    const [projectName, setProjectName] = useState("");
+    const [projectKey, setProjectKey] = useState(urlProjectKey || "");
+    const [projectId, setProjectId] = useState(null);
+    const [columns, setColumns] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    
+    const [isListModalOpen, setIsListModalOpen] = useState(false);
+    const [newListName, setNewListName] = useState("");
+
+    const [activeColumnDropdown, setActiveColumnDropdown] = useState(null);
+    const [activeTaskDropdown, setActiveTaskDropdown] = useState(null);
+
+    const [renameListModal, setRenameListModal] = useState({
+        isOpen: false,
+        columnId: null,
+        name: ""
+    });
+
+    const [taskForm, setTaskForm] = useState({
+        isOpen: false,
+        columnId: null,
+        taskId: null,
+        isEdit: false,
+        name: "",
+        desc: "",
+        priority: "Low",
+        deadline: ""
+    });
+
+    useEffect(() => {
+        const fetchProjectAndColumns = async () => {
+            try {
+                setIsLoading(true);
+                setColumns([]);
+                const token = localStorage.getItem("token");
+                const response = await fetch(`http://localhost:8000/api/projects/by-key/${urlProjectKey}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    throw new Error("Failed to fetch project details");
+                }
+                const data = await response.json();
+                if (data && data.id) {
+                    setProjectId(data.id);
+                    setProjectName(data.name);
+                    setProjectKey(data.project_key);
+                    setColumns(data.columns || []);
+                } else {
+                    throw new Error("Invalid data structure received from server");
+                }
+            } catch (error) {
+                console.error("Error fetching columns:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        if (urlProjectKey) {
+            fetchProjectAndColumns();
+        }
+    }, [urlProjectKey]);
+
+    useEffect(()=>{
+        const handleOutsideClick = () =>{
+            setActiveColumnDropdown(null);
+            setActiveTaskDropdown(null);
+        }
+        window.addEventListener('click', handleOutsideClick);
+        return () => window.removeEventListener('click', handleOutsideClick);
+    }, [])
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setTaskForm(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handlePriorityChange = (newPriority) => {
+        setTaskForm(prev => ({ ...prev, priority: newPriority }));
+    };
+
+    const openAddTaskModal = (columnId) => {
+        setTaskForm({
+            isOpen: true,
+            columnId,
+            taskId: null,
+            isEdit: false,
+            name: "",
+            desc: "",
+            priority: "Low",
+            deadline: ""
+        });
+    };
+
+    const openEditTaskModal = (columnId, task) => {
+        let formattedDeadline = "";
+        if(task.date && task.date !== "No deadline"){
+            formattedDeadline = task.date.split('-').reverse().join('-');
+        }
+        setTaskForm({
+            isOpen: true,
+            columnId,
+            taskId: task.id,
+            isEdit: true,
+            name: task.name,
+            desc: task.desc || "",
+            priority: task.priority,
+            deadline: formattedDeadline
+        });
+    }
+
+    const closeTaskModal = () => {
+        setTaskForm({
+            isOpen: false,
+            columnId: null,
+            name: "",
+            desc: "",
+            priority: "Low",
+            deadline: ""
+        });
+    };
+
+    const handleDeleteProject = async () => {
+        if (!projectId) return;
+        const confirmDelete = window.confirm('Are you sure you want to delete project?')
+        if(!confirmDelete) return;
+        try{
+            const token = localStorage.getItem("token");
+            const response = await fetch(`http://localhost:8000/api/projects/${projectId}`, {
+                method: "DELETE", headers: {"Authorization": `Bearer ${token}`}
+            })
+            if(!response.ok){
+                throw new Error("Failed to delete the project");
+            }
+            navigate('/dashboard');
+        } catch (error){
+            console.error("Error deleting project: ", error);
+        }
+    };
+
+    const handleOnDragEnd = (result) => {
+        const { destination, source, type } = result;
+        if (!destination) return;
+        if (destination.droppableId === source.droppableId && destination.index === source.index) {
+            return;
+        }
+        if (type === "column") {
+            const reorderedColumns = Array.from(columns);
+            const [removed] = reorderedColumns.splice(source.index, 1);
+            reorderedColumns.splice(destination.index, 0, removed);
+            setColumns(reorderedColumns);
+        }
+    };
+
+    const handleCreateList = async (e) => {
+        e.preventDefault();
+        if (!newListName.trim() || !projectId) return;
+
+        try {
+            const token = localStorage.getItem("token");
+            const response = await fetch(`http://localhost:8000/api/projects/${projectId}/columns`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ name: newListName })
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to create column");
+            }
+
+            const createdColumn = await response.json();
+            const formattedColumn = { ...createdColumn, tasks: [] };
+
+            setColumns([...columns, formattedColumn]);
+            setNewListName("");
+            setIsListModalOpen(false);
+        } catch (error) {
+            console.error("Error creating list on backend:", error);
+        }
+    };
+
+    const handleRenameList = async (e) =>{
+        e.preventDefault();
+        if(!renameListModal.name.trim() || !projectId || !renameListModal.columnId) return;
+
+        try{
+            const token = localStorage.getItem("token");
+            const response = await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${renameListModal.columnId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ name: renameListModal.name })
+            });
+            if(!response.ok){
+                throw new Error("Failed to rename list");
+            }
+
+            setColumns(columns.map(col=> col.id === renameListModal.columnId ? {...col, name: renameListModal.name}: col));
+            setRenameListModal({isOpen: false, columnId: null, name: ""});
+        } catch(error){
+            console.error("Error renaming list:", error)
+        }
+    };
+    const handleDeleteList = async (columnId) => {
+        if (!window.confirm("Are you sure you want to delete this list and all its tasks?")) return;
+
+        try {
+            const token = localStorage.getItem("token");
+            const response = await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${columnId}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to delete column");
+            }
+
+            setColumns(columns.filter(col => col.id !== columnId));
+        } catch (error) {
+            console.error("Error deleting list:", error);
+        }
+    };
+    const handleDeleteTask = async (columnId, taskId) => {
+        if (!window.confirm("Are you sure you want to delete this task?")) return;
+
+        try {
+            const token = localStorage.getItem("token");
+            const response = await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${columnId}/tasks/${taskId}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to delete task");
+            }
+
+            setColumns(columns.map(col => {
+                if (col.id === columnId) {
+                    return { ...col, tasks: col.tasks.filter(t => t.id !== taskId) };
+                }
+                return col;
+            }));
+        } catch (error) {
+            console.error("Error deleting task:", error);
+        }
+    };
+
+    const handleCreateOrUpdateTask = async (e) => {
+        e.preventDefault();
+        if (!taskForm.name.trim() || !projectId || !taskForm.columnId) return;
+
+        const url = taskForm.isEdit ? `http://localhost:8000/api/projects/${projectId}/columns/${taskForm.columnId}/tasks/${taskForm.taskId}` : `http://localhost:8000/api/projects/${projectId}/columns/${taskForm.columnId}/tasks`;
+        const method = taskForm.isEdit ? "PUT" : "POST";
+
+        try {
+            const token = localStorage.getItem("token");
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    name: taskForm.name,
+                    desc: taskForm.desc,
+                    priority: taskForm.priority,
+                    deadline: taskForm.deadline || null
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to save task");
+            }
+
+            const savedTask = await response.json();
+            
+            const formattedTask = {
+                id: savedTask.id,
+                name: savedTask.name,
+                desc: savedTask.desc,
+                priority: savedTask.priority,
+                date: taskForm.deadline ? taskForm.deadline.split('-').reverse().join('-') : "No deadline",
+                progress: savedTask.progress_prec
+            };
+
+            setColumns(columns.map(col => {
+                if (col.id === taskForm.columnId) {
+                    if (taskForm.isEdit) {
+                        return {
+                            ...col,
+                            tasks: col.tasks.map(t => t.id === taskForm.taskId ? formattedTask : t)
+                        };
+                    } else {
+                        return {
+                            ...col,
+                            tasks: [...col.tasks, formattedTask]
+                        };
+                    }
+                }
+                return col;
+            }));
+
+            closeTaskModal();
+        } catch (error) {
+            console.error("Error creating task:", error);
+        }
+    };
+
+    const renderContent = () => {
+        if (isLoading) {
+            return <div className="loading">Loading board...</div>;
+        }
+
+        if (columns.length === 0) {
+            return (
+                <div className="emptyBoardContainer">
+                    <button className="emptyBoardPlusBtn" onClick={() => setIsListModalOpen(true)}>
+                        <span className="hugePlusIcon">+</span>
+                        <p className="emptyStateLabel">Create your first list</p>
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <Droppable droppableId="board-columns" direction="horizontal" type="column">
+                {(provided) => (
+                    <div className="kanbanBoard" ref={provided.innerRef} {...provided.droppableProps}>
+                        {columns.map((column, index) => (
+                            <Draggable key={column.id} draggableId={String(column.id)} index={index}>
+                                {(draggableProvided) => (
+                                    <div className="kanbanColumn" ref={draggableProvided.innerRef} {...draggableProvided.draggableProps}>
+                                        <div className="columnHeader" {...draggableProvided.dragHandleProps}>
+                                            <span className="columnTitle">{column.name}</span>
+                                            
+                                            {/* DROPDOWN DLA LISTY */}
+                                            <div className="dropdown" onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveColumnDropdown(activeColumnDropdown === column.id ? null : column.id);
+                                                setActiveTaskDropdown(null);
+                                            }}>
+                                                <button className="columnOptionsBtn"><IoEllipsisHorizontal /></button>
+                                                {activeColumnDropdown === column.id && (
+                                                    <ul className="dropdownElementsContainer" style={{ width: 'max-content', minWidth: '110px' }}>
+                                                        <li onClick={() => setRenameListModal({ isOpen: true, columnId: column.id, name: column.name })}>Rename</li>
+                                                        <li onClick={() => handleDeleteList(column.id)}><span className='warning'>Delete</span></li>
+                                                    </ul>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="tasksContainer">
+                                            {column.tasks && column.tasks.map((task) => (
+                                                <div key={task.id} className="taskCard">
+                                                    <div className="taskTopRow">
+                                                        <span className="taskName">{task.name}</span>
+                                                        
+                                                        {/* DROPDOWN DLA ZADANIA */}
+                                                        <div className="dropdown" onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setActiveTaskDropdown(activeTaskDropdown === task.id ? null : task.id);
+                                                            setActiveColumnDropdown(null);
+                                                        }}>
+                                                            <button className="taskOptionsBtn"><IoEllipsisHorizontal /></button>
+                                                            {activeTaskDropdown === task.id && (
+                                                                <ul className="dropdownElementsContainer" style={{ width: 'max-content', minWidth: '110px' }}>
+                                                                    <li onClick={() => openEditTaskModal(column.id, task)}>Edit</li>
+                                                                    <li onClick={() => handleDeleteTask(column.id, task.id)}><span className='warning'>Delete</span></li>
+                                                                </ul>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="taskMetaRow">
+                                                        <div className="taskDateBlock">
+                                                            <FaRegCalendar className="calendarIcon" />
+                                                            <span>{task.date}</span>
+                                                        </div>
+                                                        <span className="progressPct">{task.progress}%</span>
+                                                    </div>
+                                                    <div className="taskBottomRow">
+                                                        <div className="taskAssignees">
+                                                            <div className="assigneeAvatar" title="Only you">
+                                                                <span className="avatarText">Only you</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="taskStatusCheckCircle"></div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <button className="addTaskBtn" onClick={() => openAddTaskModal(column.id)}>
+                                            <span className="plusIcon">+</span> Add task
+                                        </button>
+                                    </div>
+                                )}
+                            </Draggable>
+                        ))}
+                        {provided.placeholder}
+                        <button className="inlineAddListBtn" onClick={() => setIsListModalOpen(true)}>
+                            + Add another list
+                        </button>
+                    </div>
+                )}
+            </Droppable>
+        );
+    };
+
+    return (
+        <DragDropContext onDragEnd={handleOnDragEnd}>
+            <PanelView headerTitle={projectName} projectKey={projectKey} content={renderContent()} showViewToggle={columns.length > 0} showSettings={true} onDeleteProject={handleDeleteProject} />
+
+            <Modal isOpen={isListModalOpen} onClose={() => setIsListModalOpen(false)} title="Create new list" formId="createListForm">
+                <form id="createListForm" onSubmit={handleCreateList}>
+                    <input 
+                        type="text" 
+                        placeholder="e.g., In Progress, QA, Blocked..." 
+                        value={newListName}
+                        onChange={(e) => setNewListName(e.target.value)}
+                        autoFocus
+                        className="modalInput"
+                    />
+                </form>
+            </Modal>
+
+            <Modal isOpen={renameListModal.isOpen} onClose={() => setRenameListModal({ isOpen: false, columnId: null, name: "" })} title="Rename list" formId="renameListForm">
+                <form id="renameListForm" onSubmit={handleRenameList}>
+                    <input 
+                        type="text" 
+                        placeholder="List name..." 
+                        value={renameListModal.name}
+                        onChange={(e) => setRenameListModal(prev => ({ ...prev, name: e.target.value }))}
+                        autoFocus
+                        className="modalInput"
+                        required
+                    />
+                </form>
+            </Modal>
+
+            <Modal isOpen={taskForm.isOpen} onClose={closeTaskModal} title={taskForm.isEdit ? "Edit Task" : "Create New Task"} formId="createTaskForm">
+                <CreateTask 
+                    taskForm={taskForm}
+                    handleInputChange={handleInputChange}
+                    handlePriorityChange={handlePriorityChange}
+                    handleCreateTask={handleCreateOrUpdateTask}
+                />
+            </Modal>
+        </DragDropContext>
+    );
 }

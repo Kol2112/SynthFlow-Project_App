@@ -54,3 +54,42 @@ class ProjectResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class ColumnCreate(BaseModel):
+    name: str
+
+class ColumnResponse(BaseModel):
+    id: int
+    name: str
+    position: int
+    project_id: int
+    
+    class Config:
+        from_attributes = True
+
+class ColumnOrderUpdate(BaseModel):
+    column_ids: List[int]
+
+class TaskCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length =100)
+    desc: Optional[str] = None
+    priority: str = "Low"
+    deadline: Optional[date] = None
+
+class TaskResponse(BaseModel):
+    id: int
+    name: str
+    desc: Optional[str]
+    priority: str
+    deadline: Optional[date]
+    created_at: datetime
+    saved_progress: int
+    progress_prec: int
+    project_id: int
+    column_id: int
+
+    class Config:
+        from_attributes = True
+
+class TaskProgressToggle(BaseModel):
+    is_done: bool

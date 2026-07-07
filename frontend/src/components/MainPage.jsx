@@ -7,6 +7,7 @@ import LatestProject from './LatestProject.jsx'
 import FABADDButton from './utils/FABAddButton.jsx';
 import PanelView from './PanelView.jsx';
 import { useEffect, useState } from 'react';
+import {Outlet, useLocation} from 'react-router-dom';
 import EmptyDashboard from './emptyDashboard.jsx';
 import ComingTasks from './ComingTasks.jsx';
 import axios from 'axios';
@@ -34,28 +35,28 @@ export default function MainPage(){
         fetchProjects();
     }, []);
     if (loading) {
-        return <div style={{ color: 'white', textAlignment: 'center', marginTop: '20%' }}>Loading SynthFlow...</div>;
+        return (
+            <div className="spinnerContainer">
+                <div className="synthFlowSpinner"></div>
+                <p className="spinnerLabel">Loading SynthFlow...</p>
+            </div>
+        );
     }
-    return(
+    return (
         <>
-            <Navbar/>   
+            <Navbar />   
             <main>
-                <Sidebar isOpen={()=>setIsOpen(true)}/>
+                <Sidebar isOpen={() => setIsOpen(true)} />
 
-                <Modal isOpen={isOpen} onClose={()=>setIsOpen(false)} title='Create project'> 
+                <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title='Create project'> 
                     <CreateProject />
                 </Modal>
-                {projects.length === 0 ? (
-                    <EmptyDashboard />
-                ): (
-                    <div className='contentPanels'>
-                        <PanelView headerTitle={'Latest Project'} content={<LatestProject projects={projects}/>}/>
-                        {/* <PanelView headerTitle={'Upcoming Tasks'} content={<ComingTasks />}/> */}
-                    </div> 
-                )}
+                <div className="dynamicPageContent">
+                    <Outlet context={{ projects }} />
+                </div>
 
-                <FABADDButton isOpen={()=>setIsOpen(true)}/>
+                <FABADDButton isOpen={() => setIsOpen(true)} />
             </main>
         </>
-    )
+    );
 }

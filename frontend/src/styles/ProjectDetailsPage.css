@@ -1,0 +1,366 @@
+.kanbanBoard {
+    display: flex;
+    gap: 1.25rem;
+    overflow-x: auto;
+    padding-bottom: 1.5rem;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.kanbanColumn {
+    background: #111419;
+    border-radius: 16px;
+    width: 250px;
+    min-width: 250px;
+    padding: 1.2rem 1rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.columnHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding: 0 0.2rem;
+}
+
+.columnTitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.95rem;
+    color: #A5A5AE;
+    font-weight: 500;
+}
+
+.columnOptionsBtn, .taskOptionsBtn {
+    background: transparent;
+    border: none;
+    color: #646870;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 0;
+}
+
+.columnOptionsBtn:hover, .taskOptionsBtn:hover {
+    color: #E6EDF3;
+}
+
+.tasksContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.taskCard {
+    background: #090B0E;
+    border: 1px solid #1C1F26;
+    border-radius: 12px;
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.taskTopRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.taskName {
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.85rem;
+    color: #E6EDF3;
+    font-weight: 400;
+}
+
+.taskMetaRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #646870;
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.taskDateBlock {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.calendarIcon {
+    font-size: 0.85rem;
+}
+
+.progressPct {
+    color: #8B8F98;
+}
+
+.taskBottomRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.2rem;
+}
+
+.progressIndicatorCircle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #30363D;
+    position: relative;
+    overflow: hidden;
+    background: #161B22;
+}
+
+.progressMoonFill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 100%;
+    background: #E6EDF3;
+    transition: opacity 0.3s ease;
+}
+
+.taskStatusCheckCircle {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1.5px solid #646870;
+    background: transparent;
+}
+
+.addTaskBtn {
+    background: transparent;
+    border: none;
+    color: #484C54;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.4rem 0.2rem;
+    width: 100%;
+    text-align: left;
+    transition: color 0.2s ease;
+}
+
+.addTaskBtn:hover {
+    color: #8B8F98;
+}
+
+.plusIcon {
+    font-size: 1.1rem;
+}
+
+.emptyBoardContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    width: 100%;
+}
+
+.emptyBoardPlusBtn {
+    background: #111419;
+    border: 2px dashed #30363D;
+    border-radius: 20px;
+    width: 280px;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    gap: 1rem;
+}
+
+.emptyBoardPlusBtn:hover {
+    border-color: #8B949E;
+    background: #161B22;
+    transform: translateY(-2px);
+}
+
+.hugePlusIcon {
+    font-size: 3.5rem;
+    color: #646870;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.emptyBoardPlusBtn:hover .hugePlusIcon {
+    color: #E6EDF3;
+}
+
+.emptyStateLabel {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    color: #646870;
+    margin: 0;
+}
+
+.emptyBoardPlusBtn:hover .emptyStateLabel {
+    color: #A5A5AE;
+}
+
+.inlineAddListBtn {
+    background: rgba(17, 20, 25, 0.6);
+    border: 1px dashed #30363D;
+    border-radius: 16px;
+    width: 250px;
+    min-width: 250px;
+    height: 55px;
+    color: #8B949E;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.inlineAddListBtn:hover {
+    background: #111419;
+    border-color: #646870;
+    color: #E6EDF3;
+}
+
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.modalContent {
+    background: #111419;
+    border: 1px solid #30363D;
+    border-radius: 16px;
+    width: 400px;
+    padding: 2rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+}
+
+.modalContent h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: #E6EDF3;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.modalInput {
+    width: 100%;
+    background: #090B0E;
+    border: 1px solid #30363D;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    color: #E6EDF3;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.modalInput:focus {
+    border-color: #646870;
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.modalCancelBtn {
+    background: transparent;
+    border: 1px solid #30363D;
+    color: #8B949E;
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    font-family: 'Roboto', sans-serif;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.modalCancelBtn:hover {
+    background: #161B22;
+    color: #E6EDF3;
+}
+
+.modalSubmitBtn {
+    background: #E6EDF3;
+    border: none;
+    color: #090B0E;
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: opacity 0.2s ease;
+}
+
+.modalSubmitBtn:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.modalSubmitBtn:disabled {
+    background: #30363D;
+    color: #646870;
+    cursor: not-allowed;
+}
+
+.loading {
+    font-family: 'JetBrains Mono', monospace;
+    color: #646870;
+    text-align: center;
+    padding-top: 5rem;
+}
+
+
+.taskBottomRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+}
+
+.taskAssignees {
+    display: flex;
+    align-items: center;
+}
+
+.assigneeAvatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 12px; 
+    padding: 2px 8px;
+    height: 20px;
+}
+
+.avatarText {
+    color: #8b949e;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+}

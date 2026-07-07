@@ -11,3 +11,44 @@ body{
     min-width: 100%;
     min-height: 100vh;
 } */
+
+.warning{
+    color: #FF7B72 !important;
+    text-decoration: none;
+}
+
+.spinnerContainer {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #0D1117;
+}
+
+.synthFlowSpinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #161B22;
+    border-top: 5px solid #D2BCFD;
+    border-radius: 50%;
+    animation: spinSynthFlow 1s linear infinite;
+}
+
+.spinnerLabel {
+    color: #E6EDF3;
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 1.5rem;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+}
+
+@keyframes spinSynthFlow {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+

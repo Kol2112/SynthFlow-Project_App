@@ -35,9 +35,9 @@ return (
                     </button>
                     {isOpen && (
                             <ul className="dropdownElementsContainer">
-                                <li key={1}><Link to={`/project/${projectKey}`} className="dropdown-link">Tasks</Link></li>
+                                <li key={1}><Link to={`/dashboard/project/${projectKey}`} className="dropdown-link">Details</Link></li>
                                 <li key={2}>Edit</li>
-                                <li key={3}>Delete</li>
+                                <li key={3}><Link className="warning">Delete</Link></li>
                             </ul>
                     )}
                 </div>
@@ -58,7 +58,7 @@ return (
                     <progress className='itemBar' value={complete || 0} max={100}></progress>
                 </div>
 
-                <div className={"projectContentDate".concat(currentDate > formattedDate ? ' dateGone': '')}>
+                <div className={"projectContentDate".concat(currentDate > formattedDate ? ' warning': '')}>
                     <FaRegCalendarDays />
                     <p className="data">{formattedDate}</p>
                 </div>

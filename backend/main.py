@@ -2,6 +2,7 @@ from fastapi import FastAPI, BackgroundTasks, Depends, HTTPException, status
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from datetime import datetime
 from typing import Optional
 import os
 from dotenv import load_dotenv
@@ -240,3 +241,184 @@ def create_new_project(project_data: schemas.ProjectCreate, db: Session = Depend
 def get_user_projects(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     projects = db.query(models.Project).filter(models.Project.owner_id == current_user.id).all()
     return projects
+
+@app.post("/api/projects/{project_id}/columns", response_model = schemas.ColumnResponse, status_code = status.HTTP_201_CREATED)
+def create_project_column(project_id: int, column_data: schemas.ColumnCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code = 404, detail ="Project not found or access denied")
+    existing_columns_count = db.query(models.TaskColumn).filter(models.TaskColumn.project_id==project_id).count()
+    new_column= models.TaskColumn(name = column_data.name, position = existing_columns_count, project_id = project_id)
+    db.add(new_column)
+    db.commit()
+    db.refresh(new_column)
+    return new_column
+
+
+@app.get("/api/projects/by-key/{project_key}")
+def get_project_details(project_key: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+
+    project = db.query(models.Project).filter(models.Project.project_key == project_key, models.Project.owner_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    try:
+        columns = db.query(models.TaskColumn).filter(models.TaskColumn.project_id == project.id).order_by(models.TaskColumn.position).all()
+    except Exception as e:
+        print(f"DATABASE ERROR WHILE FETCHING COLUMNS: {e}")
+        columns = []
+    
+    response_data = {
+        "id": project.id,
+        "name": project.name,
+        "project_key": project.project_key,
+        "desc": project.desc,
+        "deadline": str(project.deadline) if project.deadline else None,
+        "priority": project.priority,
+        "columns": [
+            {
+                "id": col.id,
+                "name": col.name,
+                "position": col.position,
+                "tasks": [
+                    {
+                        "id": t.id,
+                        "name": t.name,
+                        "desc": t.desc,
+                        "priority": t.priority,
+                        "date": t.deadline.strftime("%d-%m-%Y") if t.deadline else "No deadline",
+                        "progress": t.progress_prec
+                    } for t in col.tasks
+                ]
+            } for col in columns
+        ]
+    }
+    return response_data
+
+@app.post("/api/projects/{project_id}/columns", response_model=schemas.ColumnResponse)
+def create_column(project_id: int, column_data: schemas.ColumnCreate, db: Session = Depends(get_db)):
+    current_count = db.query(models.TaskColumn).filter(models.TaskColumn.project_id == project_id).count()
+    new_col = models.TaskColumn(name=column_data.name, position=current_count, project_id=project_id)
+    db.add(new_col)
+    db.commit()
+    db.refresh(new_col)
+    return new_col
+
+@app.put("/api/projects/{project_id}/columns/reorder")
+def reorder_columns(project_id: int, order_data: schemas.ColumnOrderUpdate, db: Session = Depends(get_db)):
+    for index, col_id in enumerate(order_data.column_ids):
+        column = db.query(models.TaskColumn).filter(models.TaskColumn.id == col_id, models.TaskColumn.project_id == project_id).first()
+        if column:
+            column.position = index
+    db.commit()
+    return {"message": "Columns order updated successfully"}
+
+@app.post("/api/projects/{project_id}/columns/{column_id}/tasks", response_model=schemas.TaskResponse, status_code=status.HTTP_201_CREATED)
+def create_task(project_id: int, column_id: int, task_data: schemas.TaskCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or access denied")
+    column = db.query(models.TaskColumn).filter(models.TaskColumn.id == column_id, models.TaskColumn.project_id == project_id).first()
+    if not column:
+        raise HTTPException(status_code=404, detail="Column not found")
+
+    deadline_datetime = datetime.combine(task_data.deadline, datetime.min.time()) if task_data.deadline else None
+    new_task = models.Task(name = task_data.name, desc=task_data.desc, priority=task_data.priority, deadline=deadline_datetime, project_id = project_id, column_id= column_id)
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    return new_task
+
+@app.put("/api/tasks/{task_id}/toggle-complete")
+def toggle_task_complete(task_id: int, toggle: schemas.TaskProgressToggle, db: Session = Depends(get_db)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    if toggle.is_done:
+        task.saved_progress = task.progress_prec
+        task.progress_prec = 100
+    else:
+        task.progress_prec = task.saved_progress
+        
+    db.commit()
+    return {"id": task.id, "progress_prec": task.progress_prec}
+
+@app.delete("/api/projects/{project_id}", status_code=200)
+def delete_project(project_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or unauthorized")
+    db.delete(project)
+    db.commit()
+    return {"message": "Project deleted successfully"}
+
+@app.delete("/api/projects/{project_id}/columns/{column_id}", status_code=200)
+def delete_column(project_id: int, column_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or access denied")
+    
+    column = db.query(models.TaskColumn).filter(models.TaskColumn.id == column_id, models.TaskColumn.project_id == project_id).first()
+    if not column:
+        raise HTTPException(status_code=404, detail="Column not found")
+        
+    db.delete(column)
+    db.commit()
+    return {"message": "Column and its tasks deleted successfully"}
+
+@app.delete("/api/projects/{project_id}/columns/{column_id}/tasks/{task_id}", status_code=200)
+def delete_task(project_id: int, column_id: int, task_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or access denied")
+        
+    column = db.query(models.TaskColumn).filter(models.TaskColumn.id == column_id, models.TaskColumn.project_id == project_id).first()
+    if not column:
+        raise HTTPException(status_code=404, detail="Column not found")
+        
+    task = db.query(models.Task).filter(models.Task.id == task_id, models.Task.column_id == column_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    db.delete(task)
+    db.commit()
+    return {"message": "Task deleted successfully"}
+
+@app.put("/api/projects/{project_id}/columns/{column_id}", response_model=schemas.ColumnResponse)
+def rename_column(project_id: int, column_id: int, column_data: schemas.ColumnCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or access denied")
+        
+    column = db.query(models.TaskColumn).filter(models.TaskColumn.id == column_id, models.TaskColumn.project_id == project_id).first()
+    if not column:
+        raise HTTPException(status_code=404, detail="Column not found")
+        
+    column.name = column_data.name
+    db.commit()
+    db.refresh(column)
+    return column
+
+@app.put("/api/projects/{project_id}/columns/{column_id}/tasks/{task_id}", response_model=schemas.TaskResponse)
+def update_task(project_id: int, column_id: int, task_id: int, task_data: schemas.TaskCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or access denied")
+        
+    column = db.query(models.TaskColumn).filter(models.TaskColumn.id == column_id, models.TaskColumn.project_id == project_id).first()
+    if not column:
+        raise HTTPException(status_code=404, detail="Column not found")
+        
+    task = db.query(models.Task).filter(models.Task.id == task_id, models.Task.column_id == column_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    task.name = task_data.name
+    task.desc = task_data.desc
+    task.priority = task_data.priority
+    task.deadline = datetime.combine(task_data.deadline, datetime.min.time()) if task_data.deadline else None
+    
+    db.commit()
+    db.refresh(task)
+    return task

@@ -1,4 +1,5 @@
 import enum
+import datetime
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, Enum, Text
 from sqlalchemy.orm import relationship
@@ -70,11 +71,26 @@ class Project(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    columns = relationship("TaskColumn", back_populates="project", order_by="TaskColumn.position", cascade="all, delete-orphan")
     
     owner = relationship("User", back_populates="owned_projects")
     members = relationship("User", secondary="project_members", back_populates="projects")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
     logs = relationship("ActivityLog", back_populates="project", cascade="all, delete-orphan")
+
+
+
+class TaskColumn(Base):
+    __tablename__ = "task_columns"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    position = Column(Integer, default=0, nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+
+    project = relationship("Project", back_populates="columns")
+    tasks = relationship("Task", back_populates="column", cascade="all, delete-orphan")
+
 
 # Tabela zadań
 class Task(Base):
@@ -84,15 +100,20 @@ class Task(Base):
     name = Column(String, index=True, nullable=False)
     desc = Column(Text, nullable=True)
     priority = Column(Enum(TaskPriority), default=TaskPriority.LOW, nullable=False)
-    status = Column(Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
+    # status = Column(Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
     deadline = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    saved_progress = Column(Integer, default=0, nullable=False)
+    progress_prec = Column(Integer, default=0, nullable=False)
+
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    column_id = Column(Integer, ForeignKey("task_columns.id", ondelete="CASCADE"), nullable=True)
     assignee_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     parent_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True)
 
     project = relationship("Project", back_populates="tasks")
+    column = relationship("TaskColumn", back_populates="tasks")
     assignee = relationship("User", back_populates="assigned_tasks")
     
     parent = relationship("Task", remote_side=[id], back_populates="subtasks")
