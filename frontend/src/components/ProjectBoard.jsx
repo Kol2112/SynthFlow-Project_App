@@ -1,16 +1,17 @@
 import { useEffect, useState, useRef } from "react";
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { FaRegCalendarDays } from "react-icons/fa6";
 
 import PriorityDots from "./utils/PriorityDots.jsx";
+import {useDeleteProject} from "./utils/helperFunctions.js";
 import '../styles/ProjectBoard.css'
 import '../styles/DropDown.css'
-export default function ProjectBoard({ projectKey, projectTitle, members, complete, date, priority }){
+export default function ProjectBoard({ projectId, projectKey, projectTitle, members, complete, date, priority, onDelete }){
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
     const formattedDate = date ? new Date(date).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "No deadline";
     const currentDate = new Date().toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
+    const deleteProject = useDeleteProject();
     useEffect(()=>{
         const handleClickOutside = (event) =>{
             if(dropdownRef.current && !dropdownRef.current.contains(event.target)){
@@ -20,6 +21,21 @@ export default function ProjectBoard({ projectKey, projectTitle, members, comple
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
     },[])
+
+    const handleDelete = async (e) => {
+        e.preventDefault();
+    
+        await deleteProject({
+            projectId,
+            onDeleteSuccess: (id) => {
+                if (onDelete) {
+                    onDelete(id);
+                } else {
+                    window.location.reload();
+                }
+            }
+        });
+    };
 return (
         <div className="projectBoardBody">
             <div className='projectBoardContent'>
@@ -37,7 +53,7 @@ return (
                             <ul className="dropdownElementsContainer">
                                 <li key={1}><Link to={`/dashboard/project/${projectKey}`} className="dropdown-link">Details</Link></li>
                                 <li key={2}>Edit</li>
-                                <li key={3}><Link className="warning">Delete</Link></li>
+                                <li key={3} onClick={handleDelete}><Link className="warning">Delete</Link></li>
                             </ul>
                     )}
                 </div>

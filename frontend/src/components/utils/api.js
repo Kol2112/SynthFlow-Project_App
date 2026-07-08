@@ -18,5 +18,17 @@ export const authService = {
     }
 };
 
+export const deleteProjectApi = async (projectId) => {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`http://localhost:8000/api/projects/${projectId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to delete the project");
+    }
+    return await response.json();
+};
 
 export default API;

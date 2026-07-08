@@ -422,3 +422,19 @@ def update_task(project_id: int, column_id: int, task_id: int, task_data: schema
     db.commit()
     db.refresh(task)
     return task
+
+@app.put("/api/tasks/{task_id}/move")
+def move_task(task_id: int, column_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    column = db.query(models.TaskColumn).filter(models.TaskColumn.id == column_id, models.TaskColumn.project_id == task.project_id).first()
+    if not column:
+        raise HTTPException(status_code=404, detail="Invalid destination column")
+    
+    task.column_id = column_id
+    db.commit()
+    db.refresh(task)
+
+    return {"id": task.id, "column_id": task.column_id, "message": "Task moved successfully"}

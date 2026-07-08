@@ -8,6 +8,7 @@ import Modal from './Modal.jsx';
 import PanelView from './PanelView.jsx';
 import CreateTask from './CreateTask.jsx';
 
+import {useDeleteProject} from "./utils/helperFunctions.js";
 import '../styles/ProjectDetailsPage.css';
 
 export default function ProjectDetailsPage() {
@@ -30,6 +31,9 @@ export default function ProjectDetailsPage() {
         columnId: null,
         name: ""
     });
+
+    const deleteProject = useDeleteProject();
+
 
     const [taskForm, setTaskForm] = useState({
         isOpen: false,
@@ -134,24 +138,12 @@ export default function ProjectDetailsPage() {
     };
 
     const handleDeleteProject = async () => {
-        if (!projectId) return;
-        const confirmDelete = window.confirm('Are you sure you want to delete project?')
-        if(!confirmDelete) return;
-        try{
-            const token = localStorage.getItem("token");
-            const response = await fetch(`http://localhost:8000/api/projects/${projectId}`, {
-                method: "DELETE", headers: {"Authorization": `Bearer ${token}`}
-            })
-            if(!response.ok){
-                throw new Error("Failed to delete the project");
-            }
-            navigate('/dashboard');
-        } catch (error){
-            console.error("Error deleting project: ", error);
-        }
+        deleteProject({
+            projectId, redirectTo: '/dashboard'
+        })
     };
 
-    const handleOnDragEnd = (result) => {
+    const handleOnDragEnd = async (result) => {
         const { destination, source, type } = result;
         if (!destination) return;
         if (destination.droppableId === source.droppableId && destination.index === source.index) {
@@ -162,6 +154,42 @@ export default function ProjectDetailsPage() {
             const [removed] = reorderedColumns.splice(source.index, 1);
             reorderedColumns.splice(destination.index, 0, removed);
             setColumns(reorderedColumns);
+            return;
+        }
+        const sourceColId = parseInt(source.droppableId);
+        const destColId = parseInt(destination.droppableId);
+        const sourceCol = columns.find(col => col.id === sourceColId);
+        const destCol = columns.find(col=> col.id === destColId);
+        
+        if(!sourceCol || !destCol) return;
+        const sourceTask =Array.from(sourceCol.tasks);
+        const [movedTask]= sourceTask.splice(source.index, 1);
+        if(sourceColId === destColId){
+            sourceTask.splice(destination.index, 0, movedTask);
+            setColumns(columns.map(col => col.id === sourceColId ? {...col, tasks: sourceTask} : col));
+        }else{
+            const destTasks = Array.from(destCol.tasks);
+            destTasks.splice(destination.index, 0, movedTask);
+
+            setColumns(columns.map(col=>{
+                if(col.id === sourceColId) return {...col, tasks: sourceTask};
+                if(col.id === destColId) return {...col, tasks: destTasks};
+                return col;
+            }));
+
+            try{
+                const token = localStorage.getItem("token");
+                const response = await fetch(`http://localhost:8000/api/tasks/${movedTask.id}/move?column_id=${destColId}`, {
+                    method: "PUT",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if(!response.ok){
+                    throw new Error("Failed to persist task movement in database");
+                }
+            }catch (error){
+                console.error("Error moving task: ", error);
+                    
+            }
         }
     };
 
@@ -262,7 +290,37 @@ export default function ProjectDetailsPage() {
             console.error("Error deleting task:", error);
         }
     };
+    const handleMoveTask = async (taskId, sourceColId, destColId) =>{
+        try{
+            const token = localStorage.getItem("token");
+            const response = await fetch(`http://localhost:8000/api/tasks/${taskId}/move?column_id=${destColId}`, {
+                method: "PUT",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
 
+            if (!response.ok) {
+                throw new Error("Failed to move task");
+            }
+            const sourceCol = columns.find(col => col.id === sourceColId);
+            const destCol = columns.find(col => col.id === destColId);
+            if(!sourceCol || !destCol) return;
+
+            const movedTask = sourceCol.tasks.find(t=> t.id === taskId);
+            if(!movedTask) return;
+            setColumns(columns.map(col =>{
+                if(col.id === sourceColId){
+                    return {...col, tasks: col.tasks.filter(t=> t.id !== taskId)};
+                }
+                if(col.id === destColId){
+                    return {... col, tasks: [...col.tasks, movedTask]}
+                }
+                return col;
+            }))
+            setActiveTaskDropdown(null);
+        }catch(error){
+            console.error("Error moving task: ", error);
+        }
+    }
     const handleCreateOrUpdateTask = async (e) => {
         e.preventDefault();
         if (!taskForm.name.trim() || !projectId || !taskForm.columnId) return;
@@ -325,6 +383,7 @@ export default function ProjectDetailsPage() {
     };
 
     const renderContent = () => {
+        const currentDate = new Date().toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
         if (isLoading) {
             return <div className="loading">Loading board...</div>;
         }
@@ -341,7 +400,7 @@ export default function ProjectDetailsPage() {
         }
 
         return (
-            <Droppable droppableId="board-columns" direction="horizontal" type="column">
+<Droppable droppableId="board-columns" direction="horizontal" type="column">
                 {(provided) => (
                     <div className="kanbanBoard" ref={provided.innerRef} {...provided.droppableProps}>
                         {columns.map((column, index) => (
@@ -351,7 +410,6 @@ export default function ProjectDetailsPage() {
                                         <div className="columnHeader" {...draggableProvided.dragHandleProps}>
                                             <span className="columnTitle">{column.name}</span>
                                             
-                                            {/* DROPDOWN DLA LISTY */}
                                             <div className="dropdown" onClick={(e) => {
                                                 e.stopPropagation();
                                                 setActiveColumnDropdown(activeColumnDropdown === column.id ? null : column.id);
@@ -367,45 +425,84 @@ export default function ProjectDetailsPage() {
                                             </div>
                                         </div>
 
-                                        <div className="tasksContainer">
-                                            {column.tasks && column.tasks.map((task) => (
-                                                <div key={task.id} className="taskCard">
-                                                    <div className="taskTopRow">
-                                                        <span className="taskName">{task.name}</span>
-                                                        
-                                                        {/* DROPDOWN DLA ZADANIA */}
-                                                        <div className="dropdown" onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveTaskDropdown(activeTaskDropdown === task.id ? null : task.id);
-                                                            setActiveColumnDropdown(null);
-                                                        }}>
-                                                            <button className="taskOptionsBtn"><IoEllipsisHorizontal /></button>
-                                                            {activeTaskDropdown === task.id && (
-                                                                <ul className="dropdownElementsContainer" style={{ width: 'max-content', minWidth: '110px' }}>
-                                                                    <li onClick={() => openEditTaskModal(column.id, task)}>Edit</li>
-                                                                    <li onClick={() => handleDeleteTask(column.id, task.id)}><span className='warning'>Delete</span></li>
-                                                                </ul>
+                                        <Droppable droppableId={String(column.id)} type="task">
+                                            {(droppableProvided) => (
+                                                <div 
+                                                    className="tasksContainer" 
+                                                    ref={droppableProvided.innerRef} 
+                                                    {...droppableProvided.droppableProps}
+                                                >
+                                                    {column.tasks && column.tasks.map((task, taskIndex) => (
+                                                        <Draggable key={task.id} draggableId={String(task.id)} index={taskIndex}>
+                                                            {(taskDraggableProvided) => (
+                                                                <div 
+                                                                    className="taskCard"
+                                                                    ref={taskDraggableProvided.innerRef}
+                                                                    {...taskDraggableProvided.draggableProps}
+                                                                    {...taskDraggableProvided.dragHandleProps}
+                                                                >
+                                                                    <div className="taskTopRow">
+                                                                        <span className="taskName">{task.name}</span>
+                                                                        
+                                                                        <div className="dropdown" onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setActiveTaskDropdown(activeTaskDropdown === task.id ? null : task.id);
+                                                                            setActiveColumnDropdown(null);
+                                                                        }}>
+                                                                            <button className="taskOptionsBtn"><IoEllipsisHorizontal /></button>
+                                                                            {activeTaskDropdown === task.id && (
+                                                                                <ul className="dropdownElementsContainer" style={{ width: 'max-content', minWidth: '110px' }}>
+                                                                                    <li onClick={() => openEditTaskModal(column.id, task)}>Edit</li>
+                                                                                    
+                                                                                    {/* Podmenu Przenoszenia */}
+                                                                                    <li className="moveSubmenuTrigger" onClick={(e) => e.stopPropagation()}>
+                                                                                        <span>Move to</span>
+                                                                                        <ul className="submenuContainer">
+                                                                                            {columns
+                                                                                                .filter(col => col.id !== column.id)
+                                                                                                .map(destCol => (
+                                                                                                    <li 
+                                                                                                        key={destCol.id} 
+                                                                                                        onClick={() => handleMoveTask(task.id, column.id, destCol.id)}
+                                                                                                    >
+                                                                                                        {destCol.name}
+                                                                                                    </li>
+                                                                                                ))
+                                                                                            }
+                                                                                            {columns.filter(col => col.id !== column.id).length === 0 && (
+                                                                                                <li className="disabledOption">Brak innych list</li>
+                                                                                            )}
+                                                                                        </ul>
+                                                                                    </li>
+
+                                                                                    <li onClick={() => handleDeleteTask(column.id, task.id)}><span className='warning'>Delete</span></li>
+                                                                                </ul>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="taskMetaRow">
+                                                                        <div className={"taskDateBlock".concat(currentDate > task.date ? ' warning': '')}>
+                                                                            <FaRegCalendar className="calendarIcon" />
+                                                                            <span>{task.date}</span>
+                                                                        </div>
+                                                                        <span className="progressPct">{task.progress}%</span>
+                                                                    </div>
+                                                                    <div className="taskBottomRow">
+                                                                        <div className="taskAssignees">
+                                                                            <div className="assigneeAvatar" title="Only you">
+                                                                                <span className="avatarText">Only you</span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="taskStatusCheckCircle"></div>
+                                                                    </div>
+                                                                </div>
                                                             )}
-                                                        </div>
-                                                    </div>
-                                                    <div className="taskMetaRow">
-                                                        <div className="taskDateBlock">
-                                                            <FaRegCalendar className="calendarIcon" />
-                                                            <span>{task.date}</span>
-                                                        </div>
-                                                        <span className="progressPct">{task.progress}%</span>
-                                                    </div>
-                                                    <div className="taskBottomRow">
-                                                        <div className="taskAssignees">
-                                                            <div className="assigneeAvatar" title="Only you">
-                                                                <span className="avatarText">Only you</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="taskStatusCheckCircle"></div>
-                                                    </div>
+                                                        </Draggable>
+                                                    ))}
+                                                    {droppableProvided.placeholder}
                                                 </div>
-                                            ))}
-                                        </div>
+                                            )}
+                                        </Droppable>
 
                                         <button className="addTaskBtn" onClick={() => openAddTaskModal(column.id)}>
                                             <span className="plusIcon">+</span> Add task
@@ -426,7 +523,7 @@ export default function ProjectDetailsPage() {
 
     return (
         <DragDropContext onDragEnd={handleOnDragEnd}>
-            <PanelView headerTitle={projectName} projectKey={projectKey} content={renderContent()} showViewToggle={columns.length > 0} showSettings={true} onDeleteProject={handleDeleteProject} />
+            <PanelView headerTitle={projectName} projectKey={projectKey} content={renderContent()} showViewToggle={columns.length > 0} showSettings={true} onDeleteProject={handleDeleteProject} onAddList={()=>{setIsListModalOpen(true)}}/>
 
             <Modal isOpen={isListModalOpen} onClose={() => setIsListModalOpen(false)} title="Create new list" formId="createListForm">
                 <form id="createListForm" onSubmit={handleCreateList}>
