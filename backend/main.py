@@ -30,7 +30,7 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 reset_tokens = {}
 activation_tokens={}
-#Ustawienie poczty pod recovery page
+
 mail_config = ConnectionConfig(
     MAIL_USERNAME=os.getenv("MAIL_USERNAME", ""),
     MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
@@ -42,7 +42,7 @@ mail_config = ConnectionConfig(
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True
 )
-#Funkcja wysyłająca maila do aktywacji
+
 def send_activation_email_background(email:str, token: str, background_tasks: BackgroundTasks):
     activation_link = f"http://localhost:5173/activate?token={token}"
 
@@ -63,7 +63,7 @@ def send_activation_email_background(email:str, token: str, background_tasks: Ba
                             subtype= MessageType.html)
     fm = FastMail(mail_config)
     background_tasks.add_task(fm.send_message, message)
-#Funkcja do wysyłania maila resetującego hasło
+
 def send_reset_email_background(email: str, token: str, background_tasks: BackgroundTasks):
     reset_link = f"http://localhost:5173/recovery?token={token}"
     
@@ -89,11 +89,27 @@ def send_reset_email_background(email: str, token: str, background_tasks: Backgr
     fm = FastMail(mail_config)
     background_tasks.add_task(fm.send_message, message)
 
-
-#Sprawdzanie czy użytkownik istnieje
 def get_user_by_email(db: Session, email:str) -> Optional[models.User]:
     return db.query(models.User).filter(models.User.email == email).first()
 
+def update_project_progress(project_id: int, db: Session):
+    """Przelicza średni postęp projektu i zapisuje go bezpośrednio w bazie PostgreSQL"""
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        return
+    
+    main_tasks = db.query(models.Task).filter(
+        models.Task.project_id == project_id,
+        models.Task.parent_id == None
+    ).all()
+    
+    if not main_tasks:
+        project.progress_prec = 0
+    else:
+        total_progress = sum(task.progress_prec for task in main_tasks)
+        project.progress_prec = int(total_progress / len(main_tasks))
+        
+    db.commit()
 
 @app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
 def register_user(user_data: schemas.UserRegister, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):    
@@ -129,8 +145,6 @@ def register_user(user_data: schemas.UserRegister, background_tasks: BackgroundT
         "message":"Account succesful create",
         "user_id": new_user.id
     }
-
-#Endpoint do logowania użytkownika
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
 def login_usr(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
@@ -185,7 +199,7 @@ def reset_password(token: str, new_password: str, db: Session = Depends(get_db))
             detail="User not found."
         )
     user.hashed_password = get_password_hash(new_password)
-    db.commit();
+    db.commit()
     del reset_tokens[token]
     return {"message": "Password updated successfully"}
 
@@ -254,10 +268,8 @@ def create_project_column(project_id: int, column_data: schemas.ColumnCreate, db
     db.refresh(new_column)
     return new_column
 
-
 @app.get("/api/projects/by-key/{project_key}")
 def get_project_details(project_key: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-
     project = db.query(models.Project).filter(models.Project.project_key == project_key, models.Project.owner_id == current_user.id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -286,9 +298,19 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
                         "name": t.name,
                         "desc": t.desc,
                         "priority": t.priority,
+                        "startDate": t.start_date.strftime("%Y-%m-%d") if t.start_date else "",
                         "date": t.deadline.strftime("%d-%m-%Y") if t.deadline else "No deadline",
-                        "progress": t.progress_prec
-                    } for t in col.tasks
+                        "progress": t.progress_prec,
+                        "savedProgressBackend": t.saved_progress,
+                        "subtasks": [
+                            {
+                                "id": st.id,
+                                "name": st.name,
+                                "is_done": st.progress_prec == 100,
+                                "savedProgress": st.saved_progress
+                            } for st in t.subtasks
+                        ]
+                    } for t in col.tasks if t.parent_id is None
                 ]
             } for col in columns
         ]
@@ -322,26 +344,61 @@ def create_task(project_id: int, column_id: int, task_data: schemas.TaskCreate, 
     if not column:
         raise HTTPException(status_code=404, detail="Column not found")
 
+    start_date_datetime = datetime.combine(task_data.start_date, datetime.min.time()) if task_data.start_date else None
     deadline_datetime = datetime.combine(task_data.deadline, datetime.min.time()) if task_data.deadline else None
-    new_task = models.Task(name = task_data.name, desc=task_data.desc, priority=task_data.priority, deadline=deadline_datetime, project_id = project_id, column_id= column_id)
+    new_task = models.Task(name = task_data.name, desc=task_data.desc, priority=task_data.priority, start_date=start_date_datetime, deadline=deadline_datetime, project_id = project_id, column_id= column_id)
+    
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
+    
+    if task_data.subtasks:
+        total = len(task_data.subtasks)
+        completed = 0
+        for st in task_data.subtasks:
+            init_progress = 100 if st.is_done else 0
+            sub = models.Task(
+                name=st.name, 
+                project_id=project_id, 
+                column_id=column_id, 
+                parent_id=new_task.id, 
+                progress_prec=init_progress,
+                saved_progress=init_progress
+            )
+            db.add(sub)
+            if st.is_done:
+                completed += 1
+        new_task.progress_prec = int((completed/total)*100)
+        new_task.saved_progress = new_task.progress_prec
+        db.commit()
+        db.refresh(new_task)
+        
+    update_project_progress(project_id, db)
     return new_task
 
 @app.put("/api/tasks/{task_id}/toggle-complete")
 def toggle_task_complete(task_id: int, toggle: schemas.TaskProgressToggle, db: Session = Depends(get_db)):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-        
+        raise HTTPException(status_code=404, detail = "Task not found")
+    
     if toggle.is_done:
         task.saved_progress = task.progress_prec
         task.progress_prec = 100
+        subtasks = db.query(models.Task).filter(models.Task.parent_id == task_id).all()
+        for sub in subtasks:
+            sub.saved_progress = sub.progress_prec
+            sub.progress_prec = 100
     else:
-        task.progress_prec = task.saved_progress
-        
+        task.progress_prec = task.saved_progress if task.saved_progress < 100 else 0
+        subtasks = db.query(models.Task).filter(models.Task.parent_id == task_id).all()
+        for sub in subtasks:
+            sub.progress_prec = sub.saved_progress
+            
     db.commit()
+    
+    update_project_progress(task.project_id, db)
+    
     return {"id": task.id, "progress_prec": task.progress_prec}
 
 @app.delete("/api/projects/{project_id}", status_code=200)
@@ -365,6 +422,8 @@ def delete_column(project_id: int, column_id: int, db: Session = Depends(get_db)
         
     db.delete(column)
     db.commit()
+    
+    update_project_progress(project_id, db)
     return {"message": "Column and its tasks deleted successfully"}
 
 @app.delete("/api/projects/{project_id}/columns/{column_id}/tasks/{task_id}", status_code=200)
@@ -383,6 +442,8 @@ def delete_task(project_id: int, column_id: int, task_id: int, db: Session = Dep
         
     db.delete(task)
     db.commit()
+    
+    update_project_progress(project_id, db)
     return {"message": "Task deleted successfully"}
 
 @app.put("/api/projects/{project_id}/columns/{column_id}", response_model=schemas.ColumnResponse)
@@ -418,9 +479,35 @@ def update_task(project_id: int, column_id: int, task_id: int, task_data: schema
     task.desc = task_data.desc
     task.priority = task_data.priority
     task.deadline = datetime.combine(task_data.deadline, datetime.min.time()) if task_data.deadline else None
+    task.start_date = datetime.combine(task_data.start_date, datetime.min.time()) if task_data.start_date else None
     
+    db.query(models.Task).filter(models.Task.parent_id == task.id).delete()
+
+    if task_data.subtasks:
+        total = len(task_data.subtasks)
+        completed = 0
+        for st in task_data.subtasks:
+            init_progress = 100 if st.is_done else 0
+            sub = models.Task(
+                name=st.name, 
+                project_id=project_id, 
+                column_id=column_id, 
+                parent_id=task.id, 
+                progress_prec=init_progress,
+                saved_progress=init_progress
+            )
+            db.add(sub)
+            if st.is_done:
+                completed += 1
+        task.progress_prec = int((completed/total)*100)
+        task.saved_progress = task.progress_prec
+    else:
+        task.progress_prec = 0
+        task.saved_progress = 0
+
     db.commit()
     db.refresh(task)
+    update_project_progress(project_id, db)
     return task
 
 @app.put("/api/tasks/{task_id}/move")

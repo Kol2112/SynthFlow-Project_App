@@ -102,6 +102,7 @@ class Task(Base):
     priority = Column(Enum(TaskPriority), default=TaskPriority.LOW, nullable=False)
     # status = Column(Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
     deadline = Column(DateTime, nullable=True)
+    start_date = Column(DateTime, nullable=True) # Dodano start_date
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     saved_progress = Column(Integer, default=0, nullable=False)
@@ -118,6 +119,10 @@ class Task(Base):
     
     parent = relationship("Task", remote_side=[id], back_populates="subtasks")
     subtasks = relationship("Task", back_populates="parent", cascade="all, delete-orphan")
+    @property
+    def is_done(self) -> bool:
+        return self.progress_prec == 100
+
 
 # Tabela logów
 class ActivityLog(Base):

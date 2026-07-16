@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, date
-from typing import Optional, List
+from typing import Optional, List, Union
 
 #Schemat użytkownika
 
@@ -70,23 +70,46 @@ class ColumnResponse(BaseModel):
 class ColumnOrderUpdate(BaseModel):
     column_ids: List[int]
 
+class SubtaskSchema(BaseModel):
+    id: Optional[str] = None
+    name: str
+    is_done: bool
+
+class SubTaskCreate(BaseModel):
+    id: Optional[Union[int, str]] = None
+    name: str
+    is_done: bool
+
+class SubTaskResponse(BaseModel):
+    id: int
+    name: str
+    is_done: bool
+
+    class Config:
+        from_attributes = True
+
+
 class TaskCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length =100)
     desc: Optional[str] = None
     priority: str = "Low"
+    start_date: Optional[date] = None
     deadline: Optional[date] = None
+    subtasks: Optional[List[SubTaskCreate]] = []
 
 class TaskResponse(BaseModel):
     id: int
     name: str
     desc: Optional[str]
     priority: str
+    start_date: Optional[date]
     deadline: Optional[date]
     created_at: datetime
     saved_progress: int
     progress_prec: int
     project_id: int
     column_id: int
+    subtasks: List[SubTaskResponse] = []
 
     class Config:
         from_attributes = True

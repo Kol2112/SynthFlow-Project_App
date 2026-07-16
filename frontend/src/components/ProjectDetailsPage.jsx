@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { IoEllipsisHorizontal } from "react-icons/io5";
 import { FaRegCalendar } from "react-icons/fa";
@@ -13,7 +13,8 @@ import '../styles/ProjectDetailsPage.css';
 
 export default function ProjectDetailsPage() {
     const {projectKey: urlProjectKey} = useParams();
-    const navigate = useNavigate();
+    const navigate = useNavigate();   
+    const { setProjects } = useOutletContext();
     const [projectName, setProjectName] = useState("");
     const [projectKey, setProjectKey] = useState(urlProjectKey || "");
     const [projectId, setProjectId] = useState(null);
@@ -34,7 +35,6 @@ export default function ProjectDetailsPage() {
 
     const deleteProject = useDeleteProject();
 
-
     const [taskForm, setTaskForm] = useState({
         isOpen: false,
         columnId: null,
@@ -43,7 +43,9 @@ export default function ProjectDetailsPage() {
         name: "",
         desc: "",
         priority: "Low",
-        deadline: ""
+        startDate: "", 
+        deadline: "",
+        subtasks: []   
     });
 
     useEffect(() => {
@@ -78,6 +80,25 @@ export default function ProjectDetailsPage() {
         }
     }, [urlProjectKey]);
 
+    useEffect(() => {
+        if (!projectId || !setProjects || columns.length === 0) return;
+
+        const allTasks = columns.flatMap(col => col.tasks || []);
+        const totalTasks = allTasks.length;
+
+        const calculatedProgress = totalTasks > 0 
+            ? Math.round(allTasks.reduce((sum, task) => sum + (task.progress || 0), 0) / totalTasks)
+            : 0;
+
+        setProjects(prevProjects => 
+            prevProjects.map(p => 
+                p.id === projectId 
+                    ? { ...p, progress_prec: calculatedProgress } 
+                    : p
+            )
+        );
+    }, [columns, projectId, setProjects]);
+
     useEffect(()=>{
         const handleOutsideClick = () =>{
             setActiveColumnDropdown(null);
@@ -105,7 +126,9 @@ export default function ProjectDetailsPage() {
             name: "",
             desc: "",
             priority: "Low",
-            deadline: ""
+            startDate: "", 
+            deadline: "",
+            subtasks: []   
         });
     };
 
@@ -122,7 +145,9 @@ export default function ProjectDetailsPage() {
             name: task.name,
             desc: task.desc || "",
             priority: task.priority,
-            deadline: formattedDeadline
+            startDate: task.startDate || "", 
+            deadline: formattedDeadline,
+            subtasks: task.subtasks || []   
         });
     }
 
@@ -133,7 +158,9 @@ export default function ProjectDetailsPage() {
             name: "",
             desc: "",
             priority: "Low",
-            deadline: ""
+            startDate: "", 
+            deadline: "",
+            subtasks: []   
         });
     };
 
@@ -247,6 +274,7 @@ export default function ProjectDetailsPage() {
             console.error("Error renaming list:", error)
         }
     };
+
     const handleDeleteList = async (columnId) => {
         if (!window.confirm("Are you sure you want to delete this list and all its tasks?")) return;
 
@@ -266,6 +294,7 @@ export default function ProjectDetailsPage() {
             console.error("Error deleting list:", error);
         }
     };
+
     const handleDeleteTask = async (columnId, taskId) => {
         if (!window.confirm("Are you sure you want to delete this task?")) return;
 
@@ -290,6 +319,86 @@ export default function ProjectDetailsPage() {
             console.error("Error deleting task:", error);
         }
     };
+
+    const handleToggleTaskComplete = async (columnId, taskId, isCurrentlyCompleted) => {
+        const nextCompletedState = !isCurrentlyCompleted;
+
+        setColumns(prevColumns => prevColumns.map(col =>{
+            if (col.id === columnId) {
+                return {
+                    ...col,
+                    tasks: col.tasks.map(t => {
+                        if (t.id === taskId) {
+                            if(nextCompletedState){
+                                const savedProgress = t.progress;
+                                const savedSubtasks = t.subtasks ? t.subtasks.map(st=>({...st})): [];
+                                return {
+                                    ...t,
+                                    progress: 100,
+                                    savedProgress,
+                                    savedSubtasks,
+                                    subtasks: (t.subtasks || []).map(st => ({
+                                        ...st,
+                                        is_done: true
+                                    }))
+                                };
+                            } else{
+                                let restoredProgress = 0;
+                                if (t.savedProgress !== undefined) {
+                                    restoredProgress = t.savedProgress;
+                                } else if (t.savedProgressBackend !== undefined) {
+                                    restoredProgress = t.savedProgressBackend;
+                                } else if (t.progress === 100) {
+                                    restoredProgress = 0;
+                                } else {
+                                    restoredProgress = t.progress;
+                                }
+
+                                let restoredSubtasks = [];
+                                if (t.savedSubtasks !== undefined) {
+                                    restoredSubtasks = t.savedSubtasks;
+                                } else {
+                                    restoredSubtasks = (t.subtasks || []).map(st => {
+                                        const subSaved = st.savedProgress !== undefined ? st.savedProgress : 0;
+                                        return {
+                                            ...st,
+                                            is_done: subSaved === 100
+                                        };
+                                    });
+                                }
+                                
+                                return{
+                                    ...t,
+                                    progress: restoredProgress,
+                                    subtasks: restoredSubtasks
+                                }
+                            }
+                        }
+                        return t;
+                    })
+                };
+            }
+            return col;
+        }))
+        
+        try{
+            const token = localStorage.getItem("token");
+            const response = await fetch(`http://localhost:8000/api/tasks/${taskId}/toggle-complete`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ is_done: nextCompletedState })
+            });
+            if(!response.ok){
+                throw new Error("Failed to toggle task completion status");
+            }
+        }catch(error){
+            console.error("Error toggling task completion: ", error)
+        }
+    }
+
     const handleMoveTask = async (taskId, sourceColId, destColId) =>{
         try{
             const token = localStorage.getItem("token");
@@ -321,6 +430,7 @@ export default function ProjectDetailsPage() {
             console.error("Error moving task: ", error);
         }
     }
+
     const handleCreateOrUpdateTask = async (e) => {
         e.preventDefault();
         if (!taskForm.name.trim() || !projectId || !taskForm.columnId) return;
@@ -340,7 +450,9 @@ export default function ProjectDetailsPage() {
                     name: taskForm.name,
                     desc: taskForm.desc,
                     priority: taskForm.priority,
-                    deadline: taskForm.deadline || null
+                    start_date: taskForm.startDate || null,
+                    deadline: taskForm.deadline || null,
+                    subtasks: taskForm.subtasks || []
                 })
             });
 
@@ -355,8 +467,16 @@ export default function ProjectDetailsPage() {
                 name: savedTask.name,
                 desc: savedTask.desc,
                 priority: savedTask.priority,
+                startDate: savedTask.start_date || "",
                 date: taskForm.deadline ? taskForm.deadline.split('-').reverse().join('-') : "No deadline",
-                progress: savedTask.progress_prec
+                progress: savedTask.progress_prec,
+                savedProgressBackend: savedTask.saved_progress,
+                subtasks: (savedTask.subtasks || []).map(st => ({
+                    id: st.id,
+                    name: st.name,
+                    is_done: st.is_done,
+                    savedProgress: st.saved_progress
+                }))
             };
 
             setColumns(columns.map(col => {
@@ -400,7 +520,7 @@ export default function ProjectDetailsPage() {
         }
 
         return (
-<Droppable droppableId="board-columns" direction="horizontal" type="column">
+            <Droppable droppableId="board-columns" direction="horizontal" type="column">
                 {(provided) => (
                     <div className="kanbanBoard" ref={provided.innerRef} {...provided.droppableProps}>
                         {columns.map((column, index) => (
@@ -454,7 +574,6 @@ export default function ProjectDetailsPage() {
                                                                                 <ul className="dropdownElementsContainer" style={{ width: 'max-content', minWidth: '110px' }}>
                                                                                     <li onClick={() => openEditTaskModal(column.id, task)}>Edit</li>
                                                                                     
-                                                                                    {/* Podmenu Przenoszenia */}
                                                                                     <li className="moveSubmenuTrigger" onClick={(e) => e.stopPropagation()}>
                                                                                         <span>Move to</span>
                                                                                         <ul className="submenuContainer">
@@ -493,7 +612,19 @@ export default function ProjectDetailsPage() {
                                                                                 <span className="avatarText">Only you</span>
                                                                             </div>
                                                                         </div>
-                                                                        <div className="taskStatusCheckCircle"></div>
+                                                                        <div className={`taskStatusCheckCircle ${task.progress === 100 ? 'completed' : ''}`} 
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleToggleTaskComplete(column.id, task.id, task.progress === 100);
+                                                                            }}
+                                                                            title={task.progress === 100 ? "Mark as uncompleted" : "Mark as completed"}
+                                                                        >
+                                                                            {task.progress === 100 && (
+                                                                                <svg className="checkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                                                </svg>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -558,6 +689,7 @@ export default function ProjectDetailsPage() {
                     handleInputChange={handleInputChange}
                     handlePriorityChange={handlePriorityChange}
                     handleCreateTask={handleCreateOrUpdateTask}
+                    setTaskForm={setTaskForm}
                 />
             </Modal>
         </DragDropContext>

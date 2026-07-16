@@ -1,78 +1,191 @@
-.createProject{
+.createProject {
     display: flex;
     width: 100%;
     
     color: #E6EDF3;
     font-family: 'Roboto', sans-serif;
-    .leftColumn{
+
+    .leftColumn {
         display: flex;
         flex-direction: column;
-        
         margin: 0 2rem 0 5rem;
     }
     
-    .rightColumn{
+    .rightColumn {
         display: flex;
         flex-direction: column;
         justify-content: space-around;
         margin: 0 5rem 0 2rem;
 
-        .projectPriorityButtons{
+        /* Kontener dla dwóch dat obok siebie */
+        .taskDatesContainer {
+            display: flex;
+            gap: 1rem;
+            width: 100%;
+            margin-bottom: 1rem;
+
+            .dateInputWrapper {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+            }
+        }
+
+        /* Priorytety */
+        .taskPriorityLabel {
+            margin-bottom: 0.5rem;
+        }
+
+        .projectPriorityButtons {
             width: 100%;
             display: flex;
             flex-direction: row;
             justify-content: space-around;
             align-items: center;
-            button{
+            margin-bottom: 1.5rem;
+
+            button {
                 background: rgba(139, 148, 158, 0.3);
                 padding: 0.2rem 1rem;
                 margin: 0 0.2rem;
-        
                 border: none;
                 border-radius: 5px;
                 box-shadow: 8px 8px 5px rgba(0,0,0,0.5);
-        
                 color: #E6EDF3;
                 cursor: pointer;
                 font-family: 'Roboto', sans-serif;
             }
-            button:hover, .buttonActive{
+
+            button:hover, .buttonActive {
                 background: rgb(191, 145, 255, 0.5);
             }
-            
         }
 
+        /* Podzadania - Sekcja */
+        .subtasksLabel {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtasksList {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 0.8rem;
+            padding-right: 4px;
+
+            /* Pojedynczy wiersz podzadania */
+            .subtaskItem {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.5rem;
+                margin-bottom: 0.4rem;
+                background: #161b22;
+                padding: 0.4rem 0.6rem;
+                border-radius: 6px;
+                border: 1px solid #30363d;
+
+                .subtaskInnerWrapper {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    flex: 1;
+                }
+
+                .subtaskCheckbox {
+                    cursor: pointer;
+                    accent-color: #2ea44f;
+                }
+
+                .subtaskText {
+                    color: #c9d1d9;
+                    font-size: 0.85rem;
+                    word-break: break-word;
+                    transition: color 0.15s ease, text-decoration 0.15s ease;
+
+                    &.subtaskCompleted {
+                        text-decoration: line-through;
+                        color: #8b949e;
+                    }
+                }
+
+                .subtaskDeleteBtn {
+                    background: transparent;
+                    border: none;
+                    color: #f85149;
+                    cursor: pointer;
+                    font-size: 0.9rem;
+                    padding: 0 4px;
+                    transition: transform 0.15s ease;
+
+                    &:hover {
+                        transform: scale(1.15);
+                    }
+                }
+            }
+        }
+
+        /* Formularz dodawania nowego podzadania */
+        .addSubtaskContainer {
+            display: flex;
+            gap: 0.5rem;
+
+            .addSubtaskInput {
+                flex: 1;
+                padding: 0.4rem;
+                border-radius: 4px;
+                border: 1px solid #30363d;
+                background: #0d1117;
+                color: #c9d1d9;
+                margin-top: 0; /* reset domyślnego margin-top dla inputów */
+            }
+
+            .addSubtaskBtn {
+                padding: 0.4rem 0.8rem;
+                background: #21262d;
+                border: 1px solid #30363d;
+                color: #c9d1d9;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+
+                &:hover {
+                    background-color: #30363d;
+                }
+            }
+        }
     }
 
-    label{
+    label {
         margin-top: 1.5rem;
     }
 
-    input, textarea{
+    input, textarea {
         background: rgba(139, 148, 158, 0.3);
         margin-top: 0.3rem;
         padding: 0.8rem;
-        
-        overflow:hidden;
+        overflow: hidden;
         resize: none;
-        
         border: none;
         border-radius: 20px;
         color: #8B949E;
         font-family: 'Roboto', sans-serif;
         box-shadow: 8px 8px 5px rgba(0,0,0,0.5);
     }
-    input{
+
+    input {
         width: 15rem;
     }
+
     input[type="date"]::-webkit-calendar-picker-indicator {
         background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="%238B949E" d="M19 4h-3V2h-2v2h-4V2H8v2H5c-1.1 0-1.99.9-1.99 2L3 20c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>');
     }
-    #projKey{
+
+    #projKey {
         width: 50%;
     }
 
-    #halfLine{
+    #halfLine {
         background: #0B0E14;
         margin: 1rem;
         width: 3px;
@@ -80,41 +193,47 @@
         border-radius: 100px;
     }
 
-
-    @media(max-width:799px){
+    @media(max-width:799px) {
         flex-direction: column;
         width: 80vw;
-        .leftColumn{
+
+        .leftColumn {
             margin: 1rem 3rem;
         }
 
-        #halfLine{
+        #halfLine {
             display: none;
         }
-        .rightColumn{
+
+        .rightColumn {
             margin: 1rem 3rem;
-            .projectPriorityButtons{
+
+            .projectPriorityButtons {
                 margin: 1rem 0;
-                button{
+                button {
                     width: 20%;
                 }
             }
         }
-        input{
-        width: 100%;
+
+        input {
+            width: 100%;
         }
-        #projKey{
+
+        #projKey {
             width: 5rem;
         }
     }
 
-    @media(max-width:599px){
+    @media(max-width:599px) {
         width: 90vw;
-        .leftColumn,.rightColumn{
+
+        .leftColumn, .rightColumn {
             margin: 1rem 1.5rem;
-            .projectPriorityButtons{
+
+            .projectPriorityButtons {
                 flex-direction: column;
-                button{
+                button {
                     width: 80%;
                     height: 2rem;
                     margin: 0.5rem 0;
@@ -123,7 +242,8 @@
             } 
         }
     }
-    @media(max-width:270px){
+
+    @media(max-width:270px) {
         width: 100%;
     }
 }

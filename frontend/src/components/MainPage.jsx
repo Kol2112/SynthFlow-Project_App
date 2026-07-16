@@ -52,7 +52,7 @@ export default function MainPage(){
                     <CreateProject />
                 </Modal>
                 <div className="dynamicPageContent">
-                    <Outlet context={{ projects }} />
+                    <Outlet context={{ projects, setProjects}} />
                 </div>
 
                 <FABADDButton isOpen={() => setIsOpen(true)} />

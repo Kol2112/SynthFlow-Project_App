@@ -4,7 +4,7 @@ import LatestProject from '../LatestProject.jsx';
 import EmptyDashboard from '../emptyDashboard.jsx';
 
 export default function DashboardHome() {
-    const { projects } = useOutletContext();
+    const { projects, setProjects } = useOutletContext();
 
     if (projects.length === 0) {
         return <EmptyDashboard />;
@@ -12,7 +12,7 @@ export default function DashboardHome() {
 
     return (
         <div className='contentPanels'>
-            <PanelView headerTitle={'Latest Project'} content={<LatestProject projects={projects} />} />
+            <PanelView headerTitle={'Latest Project'} content={<LatestProject projects={projects} setProjects={setProjects} />} />
         </div>
     );
 }
