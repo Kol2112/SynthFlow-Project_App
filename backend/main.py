@@ -287,6 +287,7 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
         "desc": project.desc,
         "deadline": str(project.deadline) if project.deadline else None,
         "priority": project.priority,
+        "progress": project.progress_prec,
         "columns": [
             {
                 "id": col.id,

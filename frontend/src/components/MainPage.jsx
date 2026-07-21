@@ -16,6 +16,7 @@ export default function MainPage(){
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const location = useLocation();
     useEffect(()=>{
         const fetchProjects = async () =>{
             const token = localStorage.getItem('token');
@@ -33,7 +34,7 @@ export default function MainPage(){
             }
         };
         fetchProjects();
-    }, []);
+    }, [location.pathname]);
     if (loading) {
         return (
             <div className="spinnerContainer">

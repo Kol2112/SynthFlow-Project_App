@@ -80,25 +80,6 @@ export default function ProjectDetailsPage() {
         }
     }, [urlProjectKey]);
 
-    useEffect(() => {
-        if (!projectId || !setProjects || columns.length === 0) return;
-
-        const allTasks = columns.flatMap(col => col.tasks || []);
-        const totalTasks = allTasks.length;
-
-        const calculatedProgress = totalTasks > 0 
-            ? Math.round(allTasks.reduce((sum, task) => sum + (task.progress || 0), 0) / totalTasks)
-            : 0;
-
-        setProjects(prevProjects => 
-            prevProjects.map(p => 
-                p.id === projectId 
-                    ? { ...p, progress_prec: calculatedProgress } 
-                    : p
-            )
-        );
-    }, [columns, projectId, setProjects]);
-
     useEffect(()=>{
         const handleOutsideClick = () =>{
             setActiveColumnDropdown(null);

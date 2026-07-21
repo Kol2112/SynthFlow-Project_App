@@ -46,9 +46,10 @@ class ProjectResponse(BaseModel):
     id: int
     name: str
     project_key: str
-    sesc: Optional[str] = None
+    desc: Optional[str] = None
     deadline: Optional[date] = None
     priority: str
+    progress_prec: int
     tags: Optional[str] = None
     owner_id: int
 
