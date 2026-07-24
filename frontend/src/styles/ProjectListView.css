@@ -1,0 +1,168 @@
+.taskListContainer {
+  width: 100%;
+  background-color: transparent;
+  font-family: 'Roboto', sans-serif;
+  color: #E6EDF3;
+}
+
+.taskListHeader,
+.taskListRow,
+.subtaskRow {
+  display: grid;
+  grid-template-columns: minmax(220px, 2.2fr) 1.2fr 1fr 1fr 1fr 1.2fr 90px;
+  align-items: center;
+  gap: 12px;
+}
+
+.taskListHeader {
+  padding: 0.6rem 1.25rem;
+  margin-bottom: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: #8B949E;
+  font-weight: 400;
+}
+
+.taskListHeader > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.taskListHeader > div:first-child {
+  justify-content: flex-start;
+  padding-left: 2.2rem;
+}
+
+.taskListBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.taskItemGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.taskListRow {
+  background: #111419;
+  border: 1px solid #1C1F26;
+  border-radius: 12px;
+  padding: 0.75rem 1.25rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  font-size: 0.9rem;
+}
+
+.taskListRow:hover {
+  background: #161B22;
+  border-color: #30363D;
+}
+
+.subtasksContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 1.5rem;
+}
+
+.subtaskRow {
+  background: #090B0E;
+  border: 1px solid #161A26;
+  border-radius: 8px;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.82rem;
+}
+
+.subtaskRow:hover {
+  background: #111419;
+}
+
+.taskListRow > div,
+.subtaskRow > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.taskTitleCell,
+.subtaskTitleCell {
+  justify-content: flex-start !important;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.expandBtn {
+  background: transparent;
+  border: none;
+  color: #8B949E;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 0.7rem;
+}
+
+.expandBtn:hover {
+  color: #E6EDF3;
+}
+
+.expandPlaceholder {
+  width: 12px;
+}
+
+.taskTitleText,
+.subtaskTitleText {
+  font-weight: 400;
+  color: #E6EDF3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.taskTitleText.completedText,
+.subtaskTitleText.completedText {
+  text-decoration: line-through;
+  color: #646870;
+}
+
+.statusText {
+  font-size: 0.85rem;
+  color: #8B949E;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.completenessText,
+.deadlineText {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: #E6EDF3;
+}
+
+.deadlineText.warning {
+  color: #f85149;
+  font-weight: 600;
+}
+
+.taskStatusCheckCircle {
+  cursor: pointer;
+}
+
+.detailsBtn {
+  background: #3e285c;
+  border: none;
+  border-radius: 12px;
+  padding: 0.35rem 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: #d2bcfd;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.detailsBtn:hover {
+  background: #4a2c70;
+  color: #ffffff;
+}

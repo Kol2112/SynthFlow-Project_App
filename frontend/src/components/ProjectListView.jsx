@@ -1,0 +1,190 @@
+import { useState } from 'react';
+import { IoMdArrowDropdown, IoMdArrowDropright } from "react-icons/io";
+
+import PriorityDots from './utils/PriorityDots.jsx';
+import '../styles/ProjectListView.css';
+
+export default function ProjectListView({ columns = [], onToggleTaskComplete, onToggleSubtaskComplete, onOpenEditModal }) {
+  const [expandedTasks, setExpandedTasks] = useState({});
+
+  function toggleExpand(taskId) {
+    setExpandedTasks(function (prev) {
+      return {
+        ...prev,
+        [taskId]: !prev[taskId]
+      };
+    });
+  }
+
+  function formatDate(dateString) {
+    if (!dateString || dateString === 'No deadline') return 'No deadline';
+    if (dateString.includes('-')) {
+      const parts = dateString.split('-');
+      if (parts[0].length === 4) {
+        return `${parts[2]}.${parts[1]}.${parts[0]}`;
+      }
+    }
+    return dateString;
+  }
+
+  const currentDate = new Date().toLocaleDateString('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  return (
+    <div className="taskListContainer">
+      <div className="taskListHeader">
+        <div>Task name</div>
+        <div>Status</div>
+        <div>Assignee</div>
+        <div>Completeness</div>
+        <div>Priority</div>
+        <div>Deadline</div>
+        <div></div>
+      </div>
+
+      <div className="taskListBody">
+        {columns.map(function (column) {
+          return (column.tasks || []).map(function (task) {
+            const taskId = task.id;
+            const isExpanded = !!expandedTasks[taskId];
+            const subtasks = task.subtasks || [];
+            const hasSubtasks = subtasks.length > 0;
+            const isCompleted = task.progress === 100;
+            const formattedDeadline = formatDate(task.date);
+            const isOverdue = formattedDeadline !== 'No deadline' && currentDate > formattedDeadline;
+
+            return (
+              <div key={taskId} className={`taskItemGroup ${isExpanded ? 'expanded' : ''}`}>
+                <div className="taskListRow">
+                  <div className="taskTitleCell">
+                    {hasSubtasks ? (
+                      <button className="expandBtn" onClick={() => toggleExpand(taskId)}>
+                        {isExpanded ? <IoMdArrowDropdown /> : <IoMdArrowDropright />}
+                      </button>
+                    ) : (
+                      <span className="expandPlaceholder" />
+                    )}
+
+                    <div 
+                      className={`taskStatusCheckCircle ${isCompleted ? 'completed' : ''}`} 
+                      onClick={function (e) {
+                        e.stopPropagation();
+                        if (onToggleTaskComplete) onToggleTaskComplete(column.id, task.id, isCompleted);
+                      }}
+                      title={isCompleted ? "Mark as uncompleted" : "Mark as completed"}
+                    >
+                      {isCompleted && (
+                        <svg className="checkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+
+                    <span className={`taskTitleText ${isCompleted ? 'completedText' : ''}`}>{task.name}</span>
+                  </div>
+
+                  <div>
+                    <span className="statusText">{column.name}</span>
+                  </div>
+
+                  <div>
+                    <div className="assigneeAvatar" title="Only you">
+                      <span className="avatarText">Only you</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="completenessText">{task.progress || 0}%</span>
+                  </div>
+
+                  <div>
+                    <PriorityDots priority={task.priority} />
+                  </div>
+
+                  <div>
+                    <span className={`deadlineText ${isOverdue ? 'warning' : ''}`}>{formattedDeadline}</span>
+                  </div>
+
+                  <div>
+                    <button className="detailsBtn" onClick={function () {
+                      if (onOpenEditModal) {
+                        onOpenEditModal(column.id, task);
+                      }
+                    }}>
+                      Details
+                    </button>
+                  </div>
+                </div>
+
+                {hasSubtasks && isExpanded && (
+                  <div className="subtasksContainer">
+                    {subtasks.map(function (subtask) {
+                      const isSubDone = subtask.is_done;
+                      
+                      // Priorytet dla daty subtaska, spadek do daty rodzica w razie braku
+                      const rawSubtaskDate = subtask.date || subtask.deadline || task.date;
+                      const formattedSubtaskDeadline = formatDate(rawSubtaskDate);
+                      const isSubtaskOverdue = formattedSubtaskDeadline !== 'No deadline' && currentDate > formattedSubtaskDeadline;
+
+                      return (
+                        <div key={subtask.id} className="subtaskRow">
+                          <div className="subtaskTitleCell">
+                            <span className={`subtaskTitleText ${isSubDone ? 'completedText' : ''}`}>{subtask.name}</span>
+                          </div>
+
+                          <div>
+                            <span className="statusText">{column.name}</span>
+                          </div>
+
+                          <div>
+                            <div className="assigneeAvatar" title="Only you">
+                              <span className="avatarText">Only you</span>
+                            </div>
+                          </div>
+
+                          {/* REAGOWANIE NA ZAZNACZANIE / ODZNACZANIE SUBTASKA */}
+                          <div>
+                            <div 
+                              className={`taskStatusCheckCircle ${isSubDone ? 'completed' : ''}`}
+                              onClick={function (e) {
+                                e.stopPropagation();
+                                if (onToggleSubtaskComplete) {
+                                  onToggleSubtaskComplete(column.id, task.id, subtask.id, isSubDone);
+                                }
+                              }}
+                              title={isSubDone ? "Mark subtask as uncompleted" : "Mark subtask as completed"}
+                            >
+                              {isSubDone && (
+                                <svg className="checkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <PriorityDots priority={task.priority} />
+                          </div>
+
+                          {/* OSTRZEŻENIE O DEADLINIE W SUBTASKU */}
+                          <div>
+                            <span className={`deadlineText ${isSubtaskOverdue ? 'warning' : ''}`}>{formattedSubtaskDeadline}</span>
+                          </div>
+
+                          <div></div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          });
+        })}
+      </div>
+    </div>
+  );
+}

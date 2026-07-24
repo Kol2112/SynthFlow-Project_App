@@ -1,18 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { IoSettingsOutline, IoListOutline } from "react-icons/io5";
+import { IoSettingsOutline, IoListOutline, IoGridOutline } from "react-icons/io5";
 import '../styles/PanelView.css';
 
-export default function PanelView({ 
-    headerTitle, 
-    projectKey, 
-    content, 
-    showViewToggle = false,
-    showSettings = false, 
-    onEditProject, 
-    onAddList, 
-    onShowDetails, 
-    onDeleteProject 
-}) {
+export default function PanelView({ headerTitle, projectKey, content, showViewToggle = false, showSettings = false, viewMode = "Kanban", onToggleView, onEditProject, onAddList, onShowDetails, onDeleteProject}) {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const settingsRef = useRef(null);
 
@@ -37,8 +27,8 @@ export default function PanelView({
                     
                     <div className="headerActionsControls">
                         {showViewToggle && (
-                            <button className="headerViewToggleBtn" aria-label="Toggle view design">
-                                <IoListOutline />
+                            <button className="headerViewToggleBtn" aria-label="Toggle view design" onClick={onToggleView} title ={viewMode === "Kanban" ? "Switch to list viwe" : "Switch to kanban view"}>
+                                {viewMode === "kanban" ? <IoListOutline /> : <IoGridOutline/>}
                             </button>
                         )}
                         
