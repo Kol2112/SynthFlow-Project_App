@@ -7,16 +7,14 @@ import '../styles/ProjectListView.css';
 export default function ProjectListView({ columns = [], onToggleTaskComplete, onToggleSubtaskComplete, onOpenEditModal }) {
   const [expandedTasks, setExpandedTasks] = useState({});
 
-  function toggleExpand(taskId) {
-    setExpandedTasks(function (prev) {
-      return {
-        ...prev,
-        [taskId]: !prev[taskId]
-      };
-    });
-  }
+  const toggleExpand = (taskId) => {
+    setExpandedTasks((prev) => ({
+      ...prev,
+      [taskId]: !prev[taskId]
+    }));
+  };
 
-  function formatDate(dateString) {
+  const formatDate = (dateString) => {
     if (!dateString || dateString === 'No deadline') return 'No deadline';
     if (dateString.includes('-')) {
       const parts = dateString.split('-');
@@ -25,13 +23,23 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
       }
     }
     return dateString;
-  }
+  };
 
   const currentDate = new Date().toLocaleDateString('pl-PL', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric'
   });
+
+  const totalTasksCount = columns.reduce((acc, col) => acc + (col.tasks?.length || 0), 0);
+
+  if (totalTasksCount === 0) {
+    return (
+      <div className="emptyBoardContainer">
+        <p className="emptyStateLabel">No tasks found in this project</p>
+      </div>
+    );
+  }
 
   return (
     <div className="taskListContainer">
@@ -46,8 +54,8 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
       </div>
 
       <div className="taskListBody">
-        {columns.map(function (column) {
-          return (column.tasks || []).map(function (task) {
+        {columns.map((column) => 
+          (column.tasks || []).map((task) => {
             const taskId = task.id;
             const isExpanded = !!expandedTasks[taskId];
             const subtasks = task.subtasks || [];
@@ -68,14 +76,14 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                       <span className="expandPlaceholder" />
                     )}
 
-                    <div 
-                      className={`taskStatusCheckCircle ${isCompleted ? 'completed' : ''}`} 
-                      onClick={function (e) {
+                    <div className={`taskStatusCheckCircle ${isCompleted ? 'completed' : ''}`} 
+                      onClick={(e) => {
                         e.stopPropagation();
-                        if (onToggleTaskComplete) onToggleTaskComplete(column.id, task.id, isCompleted);
+                        if (onToggleTaskComplete) {
+                          onToggleTaskComplete(column.id, task.id, isCompleted);
+                        }
                       }}
-                      title={isCompleted ? "Mark as uncompleted" : "Mark as completed"}
-                    >
+                      title={isCompleted ? "Mark as uncompleted" : "Mark as completed"}>
                       {isCompleted && (
                         <svg className="checkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="20 6 9 17 4 12" />
@@ -83,7 +91,9 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                       )}
                     </div>
 
-                    <span className={`taskTitleText ${isCompleted ? 'completedText' : ''}`}>{task.name}</span>
+                    <span className={`taskTitleText ${isCompleted ? 'completedText' : ''}`}>
+                      {task.name}
+                    </span>
                   </div>
 
                   <div>
@@ -105,15 +115,18 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                   </div>
 
                   <div>
-                    <span className={`deadlineText ${isOverdue ? 'warning' : ''}`}>{formattedDeadline}</span>
+                    <span className={`deadlineText ${isOverdue ? 'warning' : ''}`}>
+                      {formattedDeadline}
+                    </span>
                   </div>
 
                   <div>
-                    <button className="detailsBtn" onClick={function () {
-                      if (onOpenEditModal) {
-                        onOpenEditModal(column.id, task);
-                      }
-                    }}>
+                    <button className="detailsBtn" 
+                      onClick={() => {
+                        if (onOpenEditModal) {
+                          onOpenEditModal(column.id, task);
+                        }
+                      }}>
                       Details
                     </button>
                   </div>
@@ -121,10 +134,8 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
 
                 {hasSubtasks && isExpanded && (
                   <div className="subtasksContainer">
-                    {subtasks.map(function (subtask) {
+                    {subtasks.map((subtask) => {
                       const isSubDone = subtask.is_done;
-                      
-                      // Priorytet dla daty subtaska, spadek do daty rodzica w razie braku
                       const rawSubtaskDate = subtask.date || subtask.deadline || task.date;
                       const formattedSubtaskDeadline = formatDate(rawSubtaskDate);
                       const isSubtaskOverdue = formattedSubtaskDeadline !== 'No deadline' && currentDate > formattedSubtaskDeadline;
@@ -132,7 +143,9 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                       return (
                         <div key={subtask.id} className="subtaskRow">
                           <div className="subtaskTitleCell">
-                            <span className={`subtaskTitleText ${isSubDone ? 'completedText' : ''}`}>{subtask.name}</span>
+                            <span className={`subtaskTitleText ${isSubDone ? 'completedText' : ''}`}>
+                              {subtask.name}
+                            </span>
                           </div>
 
                           <div>
@@ -145,18 +158,15 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                             </div>
                           </div>
 
-                          {/* REAGOWANIE NA ZAZNACZANIE / ODZNACZANIE SUBTASKA */}
                           <div>
-                            <div 
-                              className={`taskStatusCheckCircle ${isSubDone ? 'completed' : ''}`}
-                              onClick={function (e) {
+                            <div className={`taskStatusCheckCircle ${isSubDone ? 'completed' : ''}`}
+                              onClick={(e) => {
                                 e.stopPropagation();
                                 if (onToggleSubtaskComplete) {
                                   onToggleSubtaskComplete(column.id, task.id, subtask.id, isSubDone);
                                 }
                               }}
-                              title={isSubDone ? "Mark subtask as uncompleted" : "Mark subtask as completed"}
-                            >
+                              title={isSubDone ? "Mark subtask as uncompleted" : "Mark subtask as completed"}>
                               {isSubDone && (
                                 <svg className="checkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                   <polyline points="20 6 9 17 4 12" />
@@ -169,9 +179,10 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                             <PriorityDots priority={task.priority} />
                           </div>
 
-                          {/* OSTRZEŻENIE O DEADLINIE W SUBTASKU */}
                           <div>
-                            <span className={`deadlineText ${isSubtaskOverdue ? 'warning' : ''}`}>{formattedSubtaskDeadline}</span>
+                            <span className={`deadlineText ${isSubtaskOverdue ? 'warning' : ''}`}>
+                              {formattedSubtaskDeadline}
+                            </span>
                           </div>
 
                           <div></div>
@@ -182,8 +193,8 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                 )}
               </div>
             );
-          });
-        })}
+          })
+        )}
       </div>
     </div>
   );

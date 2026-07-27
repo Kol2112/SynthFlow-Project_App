@@ -1,28 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { IoEllipsisHorizontal } from "react-icons/io5";
-import { FaRegCalendar } from "react-icons/fa";
+import { DragDropContext } from '@hello-pangea/dnd';
 
 import Modal from './Modal.jsx';
 import PanelView from './PanelView.jsx';
 import CreateTask from './CreateTask.jsx';
-import ProjectListView from './ProjectListView.jsx'; // Import komponentu listy
+import ProjectKanbanView from './ProjectKanbanView.jsx';
+import ProjectListView from './ProjectListView.jsx';
 
 import { useDeleteProject } from "./utils/helperFunctions.js";
 import '../styles/ProjectDetailsPage.css';
 
 export default function ProjectDetailsPage() {
     const { projectKey: urlProjectKey } = useParams();
-    const navigate = useNavigate();   
-    const { setProjects } = useOutletContext();
+    
     const [projectName, setProjectName] = useState("");
     const [projectKey, setProjectKey] = useState(urlProjectKey || "");
     const [projectId, setProjectId] = useState(null);
     const [columns, setColumns] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    
-    // STAN TRYBU WIDOKU ('kanban' lub 'list')
     const [viewMode, setViewMode] = useState('kanban');
 
     const [isListModalOpen, setIsListModalOpen] = useState(false);
@@ -51,6 +47,12 @@ export default function ProjectDetailsPage() {
         deadline: "",
         subtasks: []   
     });
+    useEffect(() => {
+        const savedViewMode = localStorage.getItem('project_view_mode');
+        if (savedViewMode) {
+            setViewMode(savedViewMode);
+        }
+    }, []);
 
     useEffect(() => {
         const fetchProjectAndColumns = async () => {
@@ -61,15 +63,42 @@ export default function ProjectDetailsPage() {
                 const response = await fetch(`http://localhost:8000/api/projects/by-key/${urlProjectKey}`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
+
                 if (!response.ok) {
                     throw new Error("Failed to fetch project details");
                 }
+
                 const data = await response.json();
+
                 if (data && data.id) {
                     setProjectId(data.id);
                     setProjectName(data.name);
                     setProjectKey(data.project_key);
-                    setColumns(data.columns || []);
+
+                    const normalizedColumns = (data.columns || []).map(col => ({
+                        ...col,
+                        tasks: (col.tasks || []).map(task => {
+                            const taskProgress = task.progress_prec ?? task.progress ?? 0;
+                            return {
+                                ...task,
+                                progress: taskProgress,
+                                progress_prec: taskProgress,
+                                subtasks: (task.subtasks || []).map(st => {
+                                    const stProgress = st.progress_prec ?? (st.is_done ? 100 : 0);
+                                    const isDone = stProgress === 100;
+
+                                    return {
+                                        ...st,
+                                        progress_prec: stProgress,
+                                        is_done: isDone,
+                                        isCompleted: isDone
+                                    };
+                                })
+                            };
+                        })
+                    }));
+
+                    setColumns(normalizedColumns);
                 } else {
                     throw new Error("Invalid data structure received from server");
                 }
@@ -79,6 +108,7 @@ export default function ProjectDetailsPage() {
                 setIsLoading(false);
             }
         };
+
         if (urlProjectKey) {
             fetchProjectAndColumns();
         }
@@ -93,11 +123,12 @@ export default function ProjectDetailsPage() {
         return () => window.removeEventListener('click', handleOutsideClick);
     }, []);
 
-    function handleToggleViewMode() {
-        setViewMode(function(prevMode) {
-            return prevMode === 'kanban' ? 'list' : 'kanban';
-        });
-    }
+    const handleToggleViewMode = () => {
+        const nextMode = viewMode === 'kanban' ? 'list' : 'kanban';
+        setViewMode(nextMode);
+        localStorage.getItem('project_view_mode');
+        localStorage.setItem('project_view_mode', nextMode);
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -225,9 +256,7 @@ export default function ProjectDetailsPage() {
                 body: JSON.stringify({ name: newListName })
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to create column");
-            }
+            if (!response.ok) throw new Error("Failed to create column");
 
             const createdColumn = await response.json();
             const formattedColumn = { ...createdColumn, tasks: [] };
@@ -254,9 +283,7 @@ export default function ProjectDetailsPage() {
                 },
                 body: JSON.stringify({ name: renameListModal.name })
             });
-            if (!response.ok) {
-                throw new Error("Failed to rename list");
-            }
+            if (!response.ok) throw new Error("Failed to rename list");
 
             setColumns(columns.map(col => col.id === renameListModal.columnId ? { ...col, name: renameListModal.name } : col));
             setRenameListModal({ isOpen: false, columnId: null, name: "" });
@@ -275,9 +302,7 @@ export default function ProjectDetailsPage() {
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to delete column");
-            }
+            if (!response.ok) throw new Error("Failed to delete column");
 
             setColumns(columns.filter(col => col.id !== columnId));
         } catch (error) {
@@ -295,9 +320,7 @@ export default function ProjectDetailsPage() {
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to delete task");
-            }
+            if (!response.ok) throw new Error("Failed to delete task");
 
             setColumns(columns.map(col => {
                 if (col.id === columnId) {
@@ -310,131 +333,97 @@ export default function ProjectDetailsPage() {
         }
     };
 
-    const handleToggleTaskComplete = async (columnId, taskId, isCurrentlyCompleted) => {
-        const nextCompletedState = !isCurrentlyCompleted;
+    const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTaskId = null) => {
+        const nextDoneState = !isCurrentlyDone;
+        const token = localStorage.getItem("token");
 
-        setColumns(prevColumns => prevColumns.map(col => {
-            if (col.id === columnId) {
-                return {
-                    ...col,
-                    tasks: col.tasks.map(t => {
-                        if (t.id === taskId) {
-                            if (nextCompletedState) {
-                                const savedProgress = t.progress;
-                                const savedSubtasks = t.subtasks ? t.subtasks.map(st => ({ ...st })) : [];
-                                return {
-                                    ...t,
-                                    progress: 100,
-                                    savedProgress,
-                                    savedSubtasks,
-                                    subtasks: (t.subtasks || []).map(st => ({
-                                        ...st,
-                                        is_done: true
-                                    }))
-                                };
-                            } else {
-                                let restoredProgress = 0;
-                                if (t.savedProgress !== undefined) {
-                                    restoredProgress = t.savedProgress;
-                                } else if (t.savedProgressBackend !== undefined) {
-                                    restoredProgress = t.savedProgressBackend;
-                                } else if (t.progress === 100) {
-                                    restoredProgress = 0;
-                                } else {
-                                    restoredProgress = t.progress;
-                                }
-
-                                let restoredSubtasks = [];
-                                if (t.savedSubtasks !== undefined) {
-                                    restoredSubtasks = t.savedSubtasks;
-                                } else {
-                                    restoredSubtasks = (t.subtasks || []).map(st => {
-                                        const subSaved = st.savedProgress !== undefined ? st.savedProgress : 0;
-                                        return {
-                                            ...st,
-                                            is_done: subSaved === 100
-                                        };
-                                    });
-                                }
-                                
-                                return {
-                                    ...t,
-                                    progress: restoredProgress,
-                                    subtasks: restoredSubtasks
-                                };
-                            }
-                        }
-                        return t;
-                    })
-                };
-            }
-            return col;
-        }));
-        
         try {
-            const token = localStorage.getItem("token");
             const response = await fetch(`http://localhost:8000/api/tasks/${taskId}/toggle-complete`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ is_done: nextCompletedState })
+                body: JSON.stringify({ is_done: nextDoneState })
             });
-            if (!response.ok) {
-                throw new Error("Failed to toggle task completion status");
-            }
-        } catch (error) {
-            console.error("Error toggling task completion: ", error);
-        }
-    };
-    
-    const handleToggleSubtaskComplete = async (columnId, taskId, subtaskId, isCurrentlyDone) => {
-    const nextDoneState = !isCurrentlyDone;
 
-    setColumns(prevColumns => prevColumns.map(col => {
-        if (col.id === columnId) {
-            return {
-                ...col,
-                tasks: col.tasks.map(t => {
-                    if (t.id === taskId) {
-                        // Aktualizacja konkretnego subtaska
-                        const updatedSubtasks = (t.subtasks || []).map(st => 
-                            st.id === subtaskId ? { ...st, is_done: nextDoneState } : st
-                        );
+            if (!response.ok) throw new Error(`Server status ${response.status}`);
 
-                        // Przeliczenie nowego postępu głównego zadania na podstawie ukończonych subtasków
-                        const completedCount = updatedSubtasks.filter(st => st.is_done).length;
-                        const newProgress = Math.round((completedCount / updatedSubtasks.length) * 100);
+            const data = await response.json();
 
-                        return {
-                            ...t,
-                            subtasks: updatedSubtasks,
-                            progress: newProgress
-                        };
-                    }
-                    return t;
-                })
-            };
-        }
-        return col;
+            setColumns(prevColumns => (prevColumns || []).map(col => {
+                if (col.id !== columnId) return col;
+
+                return {
+                    ...col,
+                    tasks: (col.tasks || []).map(t => {
+                        if (parentTaskId && t.id === parentTaskId) {
+                            const updatedSubtasks = (t.subtasks || []).map(st => {
+                                if (st.id === taskId) {
+                                    return {
+                                        ...st,
+                                        is_done: nextDoneState,
+                                        isCompleted: nextDoneState,
+                                        progress_prec: nextDoneState ? 100 : 0,
+                                        saved_progress: nextDoneState ? 100 : 0
+                                    };
+                                }
+                                return st;
+                            });
+
+                            const completedCount = updatedSubtasks.filter(st => st.is_done || st.progress_prec === 100).length;
+                            const calculatedProgress = updatedSubtasks.length > 0 ? Math.round((completedCount / updatedSubtasks.length) * 100) : t.progress;
+                            return {
+                                ...t,
+                                subtasks: updatedSubtasks,
+                                progress: calculatedProgress,
+                                progress_prec: calculatedProgress
+                            };
+                        }
+
+                        if (!parentTaskId && t.id === taskId) {
+                            const serverSubtasks = data.subtasks || [];
+                            
+                            const updatedSubtasks = (t.subtasks || []).map(existingSub => {
+                                const match = serverSubtasks.find(s => s.id === existingSub.id);
+                                if (match) {
+                                    return {
+                                        ...existingSub,
+                                        is_done: match.is_done,
+                                        isCompleted: match.is_done,
+                                        progress_prec: match.progress_prec,
+                                        saved_progress: match.saved_progress
+                                    };
+                                }
+                                return existingSub;
+                            });
+
+                            return {
+                                ...t,
+                                progress: data.progress_prec,
+                                progress_prec: data.progress_prec,
+                                subtasks: updatedSubtasks
+                            };
+                        }
+
+                        return t;
+                    })
+                };
             }));
 
-    // Wysłanie zapytania do backendu (opcjonalne/jeśli masz dedykowany endpoint)
-    try {
-        const token = localStorage.getItem("token");
-        await fetch(`http://localhost:8000/api/subtasks/${subtaskId}/toggle-complete`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({ is_done: nextDoneState })
-        });
-    } catch (error) {
-        console.error("Error toggling subtask completion: ", error);
-    }
-};
+        } catch (error) {
+            console.error("Error toggling completion:", error);
+            alert("Błąd połączenia z serwerem.");
+        }
+    };
+
+    const handleToggleTaskComplete = (columnId, taskId, isCompleted) => {
+        handleToggleAnyTask(columnId, taskId, isCompleted, null);
+    };
+
+    const handleToggleSubtaskComplete = (columnId, parentTaskId, subtaskId, isSubDone) => {
+        handleToggleAnyTask(columnId, subtaskId, isSubDone, parentTaskId);
+    };
 
     const handleMoveTask = async (taskId, sourceColId, destColId) => {
         try {
@@ -444,15 +433,15 @@ export default function ProjectDetailsPage() {
                 headers: { "Authorization": `Bearer ${token}` }
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to move task");
-            }
+            if (!response.ok) throw new Error("Failed to move task");
+
             const sourceCol = columns.find(col => col.id === sourceColId);
             const destCol = columns.find(col => col.id === destColId);
             if (!sourceCol || !destCol) return;
 
             const movedTask = sourceCol.tasks.find(t => t.id === taskId);
             if (!movedTask) return;
+
             setColumns(columns.map(col => {
                 if (col.id === sourceColId) {
                     return { ...col, tasks: col.tasks.filter(t => t.id !== taskId) };
@@ -472,7 +461,9 @@ export default function ProjectDetailsPage() {
         e.preventDefault();
         if (!taskForm.name.trim() || !projectId || !taskForm.columnId) return;
 
-        const url = taskForm.isEdit ? `http://localhost:8000/api/projects/${projectId}/columns/${taskForm.columnId}/tasks/${taskForm.taskId}` : `http://localhost:8000/api/projects/${projectId}/columns/${taskForm.columnId}/tasks`;
+        const url = taskForm.isEdit 
+            ? `http://localhost:8000/api/projects/${projectId}/columns/${taskForm.columnId}/tasks/${taskForm.taskId}` 
+            : `http://localhost:8000/api/projects/${projectId}/columns/${taskForm.columnId}/tasks`;
         const method = taskForm.isEdit ? "PUT" : "POST";
 
         try {
@@ -493,9 +484,7 @@ export default function ProjectDetailsPage() {
                 })
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to save task");
-            }
+            if (!response.ok) throw new Error("Failed to save task");
 
             const savedTask = await response.json();
             
@@ -507,11 +496,13 @@ export default function ProjectDetailsPage() {
                 startDate: savedTask.start_date || "",
                 date: taskForm.deadline ? taskForm.deadline.split('-').reverse().join('-') : "No deadline",
                 progress: savedTask.progress_prec,
+                progress_prec: savedTask.progress_prec,
                 savedProgressBackend: savedTask.saved_progress,
                 subtasks: (savedTask.subtasks || []).map(st => ({
                     id: st.id,
                     name: st.name,
                     is_done: st.is_done,
+                    isCompleted: st.is_done,
                     savedProgress: st.saved_progress
                 }))
             };
@@ -539,21 +530,9 @@ export default function ProjectDetailsPage() {
         }
     };
 
-    const renderContent = () => {
-        const currentDate = new Date().toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const renderMainContent = () => {
         if (isLoading) {
             return <div className="loading">Loading board...</div>;
-        }
-
-        if (columns.length === 0) {
-            return (
-                <div className="emptyBoardContainer">
-                    <button className="emptyBoardPlusBtn" onClick={() => setIsListModalOpen(true)}>
-                        <span className="hugePlusIcon">+</span>
-                        <p className="emptyStateLabel">Create your first list</p>
-                    </button>
-                </div>
-            );
         }
 
         if (viewMode === 'list') {
@@ -563,187 +542,42 @@ export default function ProjectDetailsPage() {
         }
 
         return (
-            <Droppable droppableId="board-columns" direction="horizontal" type="column">
-                {(provided) => (
-                    <div className="kanbanBoard" ref={provided.innerRef} {...provided.droppableProps}>
-                        {columns.map((column, index) => (
-                            <Draggable key={column.id} draggableId={String(column.id)} index={index}>
-                                {(draggableProvided) => (
-                                    <div className="kanbanColumn" ref={draggableProvided.innerRef} {...draggableProvided.draggableProps}>
-                                        <div className="columnHeader" {...draggableProvided.dragHandleProps}>
-                                            <span className="columnTitle">{column.name}</span>
-                                            
-                                            <div className="dropdown" onClick={(e) => {
-                                                e.stopPropagation();
-                                                setActiveColumnDropdown(activeColumnDropdown === column.id ? null : column.id);
-                                                setActiveTaskDropdown(null);
-                                            }}>
-                                                <button className="columnOptionsBtn"><IoEllipsisHorizontal /></button>
-                                                {activeColumnDropdown === column.id && (
-                                                    <ul className="dropdownElementsContainer" style={{ width: 'max-content', minWidth: '110px' }}>
-                                                        <li onClick={() => setRenameListModal({ isOpen: true, columnId: column.id, name: column.name })}>Rename</li>
-                                                        <li onClick={() => handleDeleteList(column.id)}><span className='warning'>Delete</span></li>
-                                                    </ul>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <Droppable droppableId={String(column.id)} type="task">
-                                            {(droppableProvided) => (
-                                                <div 
-                                                    className="tasksContainer" 
-                                                    ref={droppableProvided.innerRef} 
-                                                    {...droppableProvided.droppableProps}
-                                                >
-                                                    {column.tasks && column.tasks.map((task, taskIndex) => (
-                                                        <Draggable key={task.id} draggableId={String(task.id)} index={taskIndex}>
-                                                            {(taskDraggableProvided) => (
-                                                                <div 
-                                                                    className="taskCard"
-                                                                    ref={taskDraggableProvided.innerRef}
-                                                                    {...taskDraggableProvided.draggableProps}
-                                                                    {...taskDraggableProvided.dragHandleProps}
-                                                                >
-                                                                    <div className="taskTopRow">
-                                                                        <span className="taskName">{task.name}</span>
-                                                                        
-                                                                        <div className="dropdown" onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setActiveTaskDropdown(activeTaskDropdown === task.id ? null : task.id);
-                                                                            setActiveColumnDropdown(null);
-                                                                        }}>
-                                                                            <button className="taskOptionsBtn"><IoEllipsisHorizontal /></button>
-                                                                            {activeTaskDropdown === task.id && (
-                                                                                <ul className="dropdownElementsContainer" style={{ width: 'max-content', minWidth: '110px' }}>
-                                                                                    <li onClick={() => openEditTaskModal(column.id, task)}>Edit</li>
-                                                                                    
-                                                                                    <li className="moveSubmenuTrigger" onClick={(e) => e.stopPropagation()}>
-                                                                                        <span>Move to</span>
-                                                                                        <ul className="submenuContainer">
-                                                                                            {columns
-                                                                                                .filter(col => col.id !== column.id)
-                                                                                                .map(destCol => (
-                                                                                                    <li 
-                                                                                                        key={destCol.id} 
-                                                                                                        onClick={() => handleMoveTask(task.id, column.id, destCol.id)}
-                                                                                                    >
-                                                                                                        {destCol.name}
-                                                                                                    </li>
-                                                                                                ))
-                                                                                            }
-                                                                                            {columns.filter(col => col.id !== column.id).length === 0 && (
-                                                                                                <li className="disabledOption">Brak innych list</li>
-                                                                                            )}
-                                                                                        </ul>
-                                                                                    </li>
-
-                                                                                    <li onClick={() => handleDeleteTask(column.id, task.id)}><span className='warning'>Delete</span></li>
-                                                                                </ul>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="taskMetaRow">
-                                                                        <div className={"taskDateBlock".concat(currentDate > task.date ? ' warning': '')}>
-                                                                            <FaRegCalendar className="calendarIcon" />
-                                                                            <span>{task.date}</span>
-                                                                        </div>
-                                                                        <span className="progressPct">{task.progress}%</span>
-                                                                    </div>
-                                                                    <div className="taskBottomRow">
-                                                                        <div className="taskAssignees">
-                                                                            <div className="assigneeAvatar" title="Only you">
-                                                                                <span className="avatarText">Only you</span>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className={`taskStatusCheckCircle ${task.progress === 100 ? 'completed' : ''}`} 
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                handleToggleTaskComplete(column.id, task.id, task.progress === 100);
-                                                                            }}
-                                                                            title={task.progress === 100 ? "Mark as uncompleted" : "Mark as completed"}
-                                                                        >
-                                                                            {task.progress === 100 && (
-                                                                                <svg className="checkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                                                                </svg>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </Draggable>
-                                                    ))}
-                                                    {droppableProvided.placeholder}
-                                                </div>
-                                            )}
-                                        </Droppable>
-
-                                        <button className="addTaskBtn" onClick={() => openAddTaskModal(column.id)}>
-                                            <span className="plusIcon">+</span> Add task
-                                        </button>
-                                    </div>
-                                )}
-                            </Draggable>
-                        ))}
-                        {provided.placeholder}
-                        <button className="inlineAddListBtn" onClick={() => setIsListModalOpen(true)}>
-                            + Add another list
-                        </button>
-                    </div>
-                )}
-            </Droppable>
+            <ProjectKanbanView 
+                columns={columns}
+                activeColumnDropdown={activeColumnDropdown}
+                setActiveColumnDropdown={setActiveColumnDropdown}
+                activeTaskDropdown={activeTaskDropdown}
+                setActiveTaskDropdown={setActiveTaskDropdown}
+                onOpenAddTaskModal={openAddTaskModal}
+                onOpenEditTaskModal={openEditTaskModal}
+                onDeleteList={handleDeleteList}
+                onRenameListModal={(column) => setRenameListModal({ isOpen: true, columnId: column.id, name: column.name })}
+                onDeleteTask={handleDeleteTask}
+                onMoveTask={handleMoveTask}
+                onToggleTaskComplete={handleToggleTaskComplete}
+                onOpenAddListModal={() => setIsListModalOpen(true)}
+            />
         );
     };
 
     return (
         <DragDropContext onDragEnd={handleOnDragEnd}>
-            <PanelView 
-                headerTitle={projectName} 
-                projectKey={projectKey} 
-                content={renderContent()} 
-                showViewToggle={columns.length > 0} 
-                viewMode={viewMode}
-                onToggleView={handleToggleViewMode}
-                showSettings={true} 
-                onDeleteProject={handleDeleteProject} 
-                onAddList={() => { setIsListModalOpen(true); }}
-            />
+            <PanelView headerTitle={projectName} projectKey={projectKey} content={renderMainContent()} showViewToggle={columns.length > 0} viewMode={viewMode} onToggleView={handleToggleViewMode} showSettings={true} onDeleteProject={handleDeleteProject} onAddList={() => setIsListModalOpen(true)}/>
 
             <Modal isOpen={isListModalOpen} onClose={() => setIsListModalOpen(false)} title="Create new list" formId="createListForm">
                 <form id="createListForm" onSubmit={handleCreateList}>
-                    <input 
-                        type="text" 
-                        placeholder="e.g., In Progress, QA, Blocked..." 
-                        value={newListName}
-                        onChange={(e) => setNewListName(e.target.value)}
-                        autoFocus
-                        className="modalInput"
-                    />
+                    <input type="text" placeholder="e.g., In Progress, QA, Blocked..." value={newListName} onChange={(e) => setNewListName(e.target.value)} autoFocus className="modalInput"/>
                 </form>
             </Modal>
 
             <Modal isOpen={renameListModal.isOpen} onClose={() => setRenameListModal({ isOpen: false, columnId: null, name: "" })} title="Rename list" formId="renameListForm">
                 <form id="renameListForm" onSubmit={handleRenameList}>
-                    <input 
-                        type="text" 
-                        placeholder="List name..." 
-                        value={renameListModal.name}
-                        onChange={(e) => setRenameListModal(prev => ({ ...prev, name: e.target.value }))}
-                        autoFocus
-                        className="modalInput"
-                        required
-                    />
+                    <input type="text" placeholder="List name..." value={renameListModal.name} onChange={(e) => setRenameListModal(prev => ({ ...prev, name: e.target.value }))} autoFocus className="modalInput" required/>
                 </form>
             </Modal>
 
             <Modal isOpen={taskForm.isOpen} onClose={closeTaskModal} title={taskForm.isEdit ? "Edit Task" : "Create New Task"} formId="createTaskForm">
-                <CreateTask 
-                    taskForm={taskForm}
-                    handleInputChange={handleInputChange}
-                    handlePriorityChange={handlePriorityChange}
-                    handleCreateTask={handleCreateOrUpdateTask}
-                    setTaskForm={setTaskForm}
-                />
+                <CreateTask taskForm={taskForm} handleInputChange={handleInputChange} handlePriorityChange={handlePriorityChange} handleCreateTask={handleCreateOrUpdateTask} setTaskForm={setTaskForm}/>
             </Modal>
         </DragDropContext>
     );
