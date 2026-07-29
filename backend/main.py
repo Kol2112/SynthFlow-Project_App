@@ -533,16 +533,25 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
         if match:
             task_id = int(match.group(1))
             print(f"Znaleziono ID zadania: #{task_id}")
-            
+        
             task = db.query(models.Task).filter(models.Task.id == task_id).first()
             
             if task:
                 task.progress_prec = 100
                 task.saved_progress = 100
-                db.commit()
-                print(f"Zadanie #{task_id} zostało oznaczone jako ukończone!")
+                
+                if task.parent_id is None:
+                    subtasks = db.query(models.Task).filter(models.Task.parent_id == task.id).all() or []
+                    for st in subtasks:
+                        st.progress_prec = 100
+                        st.saved_progress = 100
+                    
+                    db.commit()
+                    update_project_progress(task.project_id, db)
+                    print(f"Główne zadanie #{task_id} oraz jego {len(subtasks)} podzadań zostały oznaczone jako ukończone!")
 
-                if task.parent_id:
+                else:
+                    db.commit()
                     parent = db.query(models.Task).filter(models.Task.id == task.parent_id).first()
                     if parent:
                         parent_subtasks = db.query(models.Task).filter(models.Task.parent_id == parent.id).all() or []
@@ -554,8 +563,7 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
                         db.commit()
                         
                         update_project_progress(parent.project_id, db)
-                else:
-                    update_project_progress(task.project_id, db)
+                    print(f"Subzadanie #{task_id} zostało oznaczone jako ukończone!")
             else:
                 print(f"Nie znaleziono w bazie zadania o ID #{task_id}")
             
