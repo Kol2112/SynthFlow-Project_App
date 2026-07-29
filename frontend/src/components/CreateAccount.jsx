@@ -19,7 +19,6 @@ export default function CreateAccount(){
     }
     const [formData, setFormData] = useState(rawData);
     const [errMsg, setErrMsg] = useState('');
-    // const [successMsg, setSuccessMsg] = useState('');
 
     const handleChange = (e) =>{
         const {name, value} = e.target;
