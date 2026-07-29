@@ -520,10 +520,8 @@ def toggle_any_task_complete(task_id: int, toggle: schemas.TaskProgressToggle, d
 from fastapi import FastAPI, Request, status
 
 @app.post("/api/webhooks/github")
-async def github_webhook(request: Request):  # <--- Musi być jawnie wpisany typ Request!
-    # Pobieramy surowy JSON przesłany przez GitHub
+async def github_webhook(request: Request, db: Session = Depends(get_db)):
     payload = await request.json()
-    
     commits = payload.get("commits", [])
     print(f"Otrzymano webhook z GitHuba. Liczba commitów: {len(commits)}")
     
@@ -531,11 +529,34 @@ async def github_webhook(request: Request):  # <--- Musi być jawnie wpisany typ
         message = commit.get("message", "")
         print(f"Wiadomość commita: {message}")
         
-        # Szukamy identyfikatora zadania np. #12 lub #12.1
-        match = re.search(r'#(\d+(\.\d+)?)', message)
+        match = re.search(r'#(\d+)', message)
         if match:
-            task_id = match.group(1)
+            task_id = int(match.group(1))
             print(f"Znaleziono ID zadania: #{task_id}")
-            # Tutaj wstaw logikę zmiany statusu zadania w bazie danych
+            
+            task = db.query(models.Task).filter(models.Task.id == task_id).first()
+            
+            if task:
+                task.progress_prec = 100
+                task.saved_progress = 100
+                db.commit()
+                print(f"Zadanie #{task_id} zostało oznaczone jako ukończone!")
+
+                if task.parent_id:
+                    parent = db.query(models.Task).filter(models.Task.id == task.parent_id).first()
+                    if parent:
+                        parent_subtasks = db.query(models.Task).filter(models.Task.parent_id == parent.id).all() or []
+                        completed_count = sum(1 for st in parent_subtasks if st.progress_prec == 100)
+                        
+                        new_parent_progress = int((completed_count / len(parent_subtasks)) * 100) if parent_subtasks else 0
+                        parent.progress_prec = new_parent_progress
+                        parent.saved_progress = new_parent_progress
+                        db.commit()
+                        
+                        update_project_progress(parent.project_id, db)
+                else:
+                    update_project_progress(task.project_id, db)
+            else:
+                print(f"Nie znaleziono w bazie zadania o ID #{task_id}")
             
     return {"status": "success", "message": "Webhook processed"}
