@@ -101,7 +101,7 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
                     type="text" 
                     name="name" 
                     placeholder='e.g SynthFlow' 
-                    value={formData.name} // <--- Odwołujemy się tylko do formData!
+                    value={formData.name}
                     onChange={handleChange} 
                     required 
                 />
@@ -112,7 +112,7 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
                     type="text" 
                     name="projectKey" 
                     placeholder='SNF-50' 
-                    value={formData.projectKey} // <--- Odwołujemy się tylko do formData!
+                    value={formData.projectKey}
                     onChange={handleChange} 
                     disabled={Boolean(projectForm?.id || projectForm?.isEdit)} 
                     required 
@@ -123,7 +123,7 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
                     name="desc" 
                     rows={"10"} 
                     cols={"30"} 
-                    value={formData.desc} // <--- Odwołujemy się tylko do formData!
+                    value={formData.desc}
                     onChange={handleChange}
                 ></textarea>
             </div>
@@ -135,7 +135,7 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
                 <input 
                     type='date' 
                     name="deadline" 
-                    value={formData.deadline} // <--- Odwołujemy się tylko do formData!
+                    value={formData.deadline}
                     onChange={handleChange} 
                 />
                 
@@ -167,7 +167,7 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
                     type="url" 
                     name="githubRepo" 
                     placeholder="https://github.com/username/repository" 
-                    value={formData.githubRepo} // <--- Odwołujemy się tylko do formData!
+                    value={formData.githubRepo}
                     onChange={handleChange} 
                 />
             </div>
