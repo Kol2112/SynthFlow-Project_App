@@ -6,6 +6,14 @@ import '../styles/ProjectListView.css';
 
 export default function ProjectListView({ columns = [], onToggleTaskComplete, onToggleSubtaskComplete, onOpenEditModal }) {
   const [expandedTasks, setExpandedTasks] = useState({});
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopyId = (e, id) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(`#${id}`);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
 
   const toggleExpand = (taskId) => {
     setExpandedTasks((prev) => ({
@@ -91,6 +99,14 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                       )}
                     </div>
 
+                    <span 
+                      onClick={(e) => handleCopyId(e, task.id)}
+                      title="Click to copy task ID for commit"
+                      className={`taskIdBadge ${copiedId === task.id ? 'copied' : ''}`}
+                    >
+                      {copiedId === task.id ? 'Copied!' : `#${task.id}`}
+                    </span>
+
                     <span className={`taskTitleText ${isCompleted ? 'completedText' : ''}`}>
                       {task.name}
                     </span>
@@ -143,6 +159,14 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                       return (
                         <div key={subtask.id} className="subtaskRow">
                           <div className="subtaskTitleCell">
+                            <span 
+                              onClick={(e) => handleCopyId(e, subtask.id)}
+                              title="Click to copy subtask ID for commit"
+                              className={`taskIdBadge subtask ${copiedId === subtask.id ? 'copied' : ''}`}
+                            >
+                              {copiedId === subtask.id ? 'Copied!' : `#${subtask.id}`}
+                            </span>
+
                             <span className={`subtaskTitleText ${isSubDone ? 'completedText' : ''}`}>
                               {subtask.name}
                             </span>

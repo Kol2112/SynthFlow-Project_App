@@ -5,6 +5,8 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import Modal from './Modal.jsx';
 import PanelView from './PanelView.jsx';
 import CreateTask from './CreateTask.jsx';
+import CreateProject from './CreateProject.jsx';
+import ProjectDetailsModal from './ProjectDetailsModal.jsx'; // 1. IMPORT
 import ProjectKanbanView from './ProjectKanbanView.jsx';
 import ProjectListView from './ProjectListView.jsx';
 
@@ -17,11 +19,17 @@ export default function ProjectDetailsPage() {
     const [projectName, setProjectName] = useState("");
     const [projectKey, setProjectKey] = useState(urlProjectKey || "");
     const [projectId, setProjectId] = useState(null);
+    const [projectDesc, setProjectsDesc] = useState("");
+    const [projectPriority, setProjectPriority] = useState("Low");
+    const [projectDeadline, setProjectDeadline] = useState("");
+    const [projectGithubRepo, setProjectGithubRepo] = useState("");
+    
     const [columns, setColumns] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [viewMode, setViewMode] = useState('kanban');
 
     const [isListModalOpen, setIsListModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // 2. NOWY STAN
     const [newListName, setNewListName] = useState("");
 
     const [activeColumnDropdown, setActiveColumnDropdown] = useState(null);
@@ -35,11 +43,12 @@ export default function ProjectDetailsPage() {
 
     const deleteProject = useDeleteProject();
 
-    const [taskForm, setTaskForm] = useState({
+    const [modalForm, setModalForm] = useState({
         isOpen: false,
-        columnId: null,
-        taskId: null,
+        type: 'task',
         isEdit: false,
+        columnId: null,
+        id: null,
         name: "",
         desc: "",
         priority: "Low",
@@ -47,6 +56,7 @@ export default function ProjectDetailsPage() {
         deadline: "",
         subtasks: []   
     });
+
     useEffect(() => {
         const savedViewMode = localStorage.getItem('project_view_mode');
         if (savedViewMode) {
@@ -74,6 +84,10 @@ export default function ProjectDetailsPage() {
                     setProjectId(data.id);
                     setProjectName(data.name);
                     setProjectKey(data.project_key);
+                    setProjectsDesc(data.desc || "");
+                    setProjectPriority(data.priority || "Low");
+                    setProjectDeadline(data.deadline || "");
+                    setProjectGithubRepo(data.github_repo || data.githubRepo || "")
 
                     const normalizedColumns = (data.columns || []).map(col => ({
                         ...col,
@@ -123,73 +137,182 @@ export default function ProjectDetailsPage() {
         return () => window.removeEventListener('click', handleOutsideClick);
     }, []);
 
-    const handleToggleViewMode = () => {
-        const nextMode = viewMode === 'kanban' ? 'list' : 'kanban';
-        setViewMode(nextMode);
-        localStorage.getItem('project_view_mode');
-        localStorage.setItem('project_view_mode', nextMode);
+    const openEditModal = (type, data={}, columnId = null) => {
+        if(type === 'project'){
+            setModalForm({
+                isOpen: true,
+                type: 'project',
+                isEdit: true,
+                id: projectId,
+                columnId: null,
+                name: projectName,
+                desc: projectDesc,
+                priority: projectPriority,
+                startDate: "",
+                deadline: projectDeadline ? projectDeadline.split('T')[0] : "",
+                projectKey: projectKey,
+                githubRepo: projectGithubRepo,
+                subtasks: []
+            });
+        } else if(type === 'task'){
+            let formattedDeadline = "";
+            if (data.date && data.date !== "No deadline") {
+                formattedDeadline = data.date.split('-').reverse().join('-');
+            }
+            setModalForm({
+                isOpen: true,
+                type: 'task',
+                isEdit: true,
+                columnId,
+                id: data.id,
+                name: data.name,
+                desc: data.desc || "",
+                priority: data.priority,
+                startDate: data.startDate || "", 
+                deadline: formattedDeadline,
+                projectKey: "",
+                subtasks: data.subtasks || []   
+            });
+        }
+    };
+
+    const openAddTaskModal = (columnId) => {
+        setModalForm({
+            isOpen: true,
+            type: 'task',
+            isEdit: false,
+            columnId,
+            id: null,
+            name: "",
+            desc: "",
+            priority: "Low",
+            startDate: "", 
+            deadline: "",
+            projectKey: "",
+            subtasks: []   
+        });
+    };
+
+    const closeModal = () => {
+        setModalForm(prev => ({...prev, isOpen: false}));
     };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setTaskForm(prev => ({ ...prev, [name]: value }));
+        setModalForm(prev => ({ ...prev, [name]: value }));
     };
 
     const handlePriorityChange = (newPriority) => {
-        setTaskForm(prev => ({ ...prev, priority: newPriority }));
+        setModalForm(prev => ({ ...prev, priority: newPriority }));
     };
 
-    const openAddTaskModal = (columnId) => {
-        setTaskForm({
-            isOpen: true,
-            columnId,
-            taskId: null,
-            isEdit: false,
-            name: "",
-            desc: "",
-            priority: "Low",
-            startDate: "", 
-            deadline: "",
-            subtasks: []   
-        });
+    const handleToggleViewMode = () => {
+        const nextMode = viewMode === 'kanban' ? 'list' : 'kanban';
+        setViewMode(nextMode);
+        localStorage.setItem('project_view_mode', nextMode);
     };
 
-    const openEditTaskModal = (columnId, task) => {
-        let formattedDeadline = "";
-        if (task.date && task.date !== "No deadline") {
-            formattedDeadline = task.date.split('-').reverse().join('-');
+    const handleSaveForm = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        const token = localStorage.getItem("token");
+
+        if (modalForm.type === "project") {
+            const payload = {
+                name: modalForm.name,
+                desc: modalForm.desc,
+                priority: modalForm.priority,
+                deadline: modalForm.deadline || null,
+                github_repo: modalForm.githubRepo || modalForm.github_repo || null
+            };
+
+            try {
+                const response = await fetch(`http://localhost:8000/api/projects/${projectId}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error("Failed to update project");
+
+                const updatedProject = await response.json();
+                setProjectName(updatedProject.name);
+                setProjectsDesc(updatedProject.desc || "");
+                setProjectPriority(updatedProject.priority);
+                setProjectDeadline(updatedProject.deadline ? updatedProject.deadline.split("T")[0] : "");
+                setProjectGithubRepo(updatedProject.github_repo || updatedProject.githubRepo || "");
+
+                closeModal();
+            } catch (error) {
+                console.error("Error updating project: ", error);
+            }
+        } else {
+            if (!modalForm.name || !modalForm.name.trim() || !projectId || !modalForm.columnId) return;
+
+            const url = modalForm.isEdit
+                ? `http://localhost:8000/api/projects/${projectId}/columns/${modalForm.columnId}/tasks/${modalForm.id}` 
+                : `http://localhost:8000/api/projects/${projectId}/columns/${modalForm.columnId}/tasks`;
+            const method = modalForm.isEdit ? "PUT" : "POST";
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        name: modalForm.name,
+                        desc: modalForm.desc,
+                        priority: modalForm.priority,
+                        start_date: modalForm.startDate || null,
+                        deadline: modalForm.deadline || null,
+                        subtasks: modalForm.subtasks || []
+                    })
+                });
+
+                if (!response.ok) throw new Error("Failed to save task");
+
+                const savedProjectDetails = await fetch(`http://localhost:8000/api/projects/by-key/${urlProjectKey}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+
+                if (savedProjectDetails.ok) {
+                    const data = await savedProjectDetails.json();
+                    const normalizedColumns = (data.columns || []).map(col => ({
+                        ...col,
+                        tasks: (col.tasks || []).map(task => {
+                            const taskProgress = task.progress_prec ?? task.progress ?? 0;
+                            return {
+                                ...task,
+                                progress: taskProgress,
+                                progress_prec: taskProgress,
+                                subtasks: (task.subtasks || []).map(st => {
+                                    const stProgress = st.progress_prec ?? (st.is_done ? 100 : 0);
+                                    return {
+                                        ...st,
+                                        progress_prec: stProgress,
+                                        is_done: stProgress === 100,
+                                        isCompleted: stProgress === 100
+                                    };
+                                })
+                            };
+                        })
+                    }));
+                    setColumns(normalizedColumns);
+                }
+
+                closeModal();
+            } catch (error) {
+                console.error("Error creating or updating task: ", error);
+            }
         }
-        setTaskForm({
-            isOpen: true,
-            columnId,
-            taskId: task.id,
-            isEdit: true,
-            name: task.name,
-            desc: task.desc || "",
-            priority: task.priority,
-            startDate: task.startDate || "", 
-            deadline: formattedDeadline,
-            subtasks: task.subtasks || []   
-        });
-    };
-
-    const closeTaskModal = () => {
-        setTaskForm({
-            isOpen: false,
-            columnId: null,
-            name: "",
-            desc: "",
-            priority: "Low",
-            startDate: "", 
-            deadline: "",
-            subtasks: []   
-        });
     };
 
     const handleDeleteProject = async () => {
-        deleteProject({
-            projectId, redirectTo: '/dashboard'
-        });
+        deleteProject({ projectId, redirectTo: '/dashboard'});
     };
 
     const handleOnDragEnd = async (result) => {
@@ -417,119 +540,6 @@ export default function ProjectDetailsPage() {
         }
     };
 
-    const handleToggleTaskComplete = (columnId, taskId, isCompleted) => {
-        handleToggleAnyTask(columnId, taskId, isCompleted, null);
-    };
-
-    const handleToggleSubtaskComplete = (columnId, parentTaskId, subtaskId, isSubDone) => {
-        handleToggleAnyTask(columnId, subtaskId, isSubDone, parentTaskId);
-    };
-
-    const handleMoveTask = async (taskId, sourceColId, destColId) => {
-        try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`http://localhost:8000/api/tasks/${taskId}/move?column_id=${destColId}`, {
-                method: "PUT",
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-
-            if (!response.ok) throw new Error("Failed to move task");
-
-            const sourceCol = columns.find(col => col.id === sourceColId);
-            const destCol = columns.find(col => col.id === destColId);
-            if (!sourceCol || !destCol) return;
-
-            const movedTask = sourceCol.tasks.find(t => t.id === taskId);
-            if (!movedTask) return;
-
-            setColumns(columns.map(col => {
-                if (col.id === sourceColId) {
-                    return { ...col, tasks: col.tasks.filter(t => t.id !== taskId) };
-                }
-                if (col.id === destColId) {
-                    return { ...col, tasks: [...col.tasks, movedTask] };
-                }
-                return col;
-            }));
-            setActiveTaskDropdown(null);
-        } catch (error) {
-            console.error("Error moving task: ", error);
-        }
-    };
-
-    const handleCreateOrUpdateTask = async (e) => {
-        e.preventDefault();
-        if (!taskForm.name.trim() || !projectId || !taskForm.columnId) return;
-
-        const url = taskForm.isEdit 
-            ? `http://localhost:8000/api/projects/${projectId}/columns/${taskForm.columnId}/tasks/${taskForm.taskId}` 
-            : `http://localhost:8000/api/projects/${projectId}/columns/${taskForm.columnId}/tasks`;
-        const method = taskForm.isEdit ? "PUT" : "POST";
-
-        try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    name: taskForm.name,
-                    desc: taskForm.desc,
-                    priority: taskForm.priority,
-                    start_date: taskForm.startDate || null,
-                    deadline: taskForm.deadline || null,
-                    subtasks: taskForm.subtasks || []
-                })
-            });
-
-            if (!response.ok) throw new Error("Failed to save task");
-
-            const savedTask = await response.json();
-            
-            const formattedTask = {
-                id: savedTask.id,
-                name: savedTask.name,
-                desc: savedTask.desc,
-                priority: savedTask.priority,
-                startDate: savedTask.start_date || "",
-                date: taskForm.deadline ? taskForm.deadline.split('-').reverse().join('-') : "No deadline",
-                progress: savedTask.progress_prec,
-                progress_prec: savedTask.progress_prec,
-                savedProgressBackend: savedTask.saved_progress,
-                subtasks: (savedTask.subtasks || []).map(st => ({
-                    id: st.id,
-                    name: st.name,
-                    is_done: st.is_done,
-                    isCompleted: st.is_done,
-                    savedProgress: st.saved_progress
-                }))
-            };
-
-            setColumns(columns.map(col => {
-                if (col.id === taskForm.columnId) {
-                    if (taskForm.isEdit) {
-                        return {
-                            ...col,
-                            tasks: col.tasks.map(t => t.id === taskForm.taskId ? formattedTask : t)
-                        };
-                    } else {
-                        return {
-                            ...col,
-                            tasks: [...col.tasks, formattedTask]
-                        };
-                    }
-                }
-                return col;
-            }));
-
-            closeTaskModal();
-        } catch (error) {
-            console.error("Error creating task:", error);
-        }
-    };
-
     const renderMainContent = () => {
         if (isLoading) {
             return <div className="loading">Loading board...</div>;
@@ -537,7 +547,12 @@ export default function ProjectDetailsPage() {
 
         if (viewMode === 'list') {
             return (
-                <ProjectListView columns={columns} onToggleTaskComplete={handleToggleTaskComplete} onToggleSubtaskComplete={handleToggleSubtaskComplete} onOpenEditModal={openEditTaskModal}/>
+                <ProjectListView 
+                    columns={columns} 
+                    onToggleTaskComplete={(colId, taskId, isDone) => handleToggleAnyTask(colId, taskId, isDone, null)} 
+                    onToggleSubtaskComplete={(colId, parentId, subId, isDone) => handleToggleAnyTask(colId, subId, isDone, parentId)} 
+                    onOpenEditModal={(colId, task) => openEditModal('task', task, colId)}
+                />
             );
         }
 
@@ -549,12 +564,11 @@ export default function ProjectDetailsPage() {
                 activeTaskDropdown={activeTaskDropdown}
                 setActiveTaskDropdown={setActiveTaskDropdown}
                 onOpenAddTaskModal={openAddTaskModal}
-                onOpenEditTaskModal={openEditTaskModal}
+                onOpenEditTaskModal={(colId, task) => openEditModal('task', task, colId)}
                 onDeleteList={handleDeleteList}
                 onRenameListModal={(column) => setRenameListModal({ isOpen: true, columnId: column.id, name: column.name })}
                 onDeleteTask={handleDeleteTask}
-                onMoveTask={handleMoveTask}
-                onToggleTaskComplete={handleToggleTaskComplete}
+                onToggleTaskComplete={(colId, taskId, isDone) => handleToggleAnyTask(colId, taskId, isDone, null)}
                 onOpenAddListModal={() => setIsListModalOpen(true)}
             />
         );
@@ -562,7 +576,63 @@ export default function ProjectDetailsPage() {
 
     return (
         <DragDropContext onDragEnd={handleOnDragEnd}>
-            <PanelView headerTitle={projectName} projectKey={projectKey} content={renderMainContent()} showViewToggle={columns.length > 0} viewMode={viewMode} onToggleView={handleToggleViewMode} showSettings={true} onDeleteProject={handleDeleteProject} onAddList={() => setIsListModalOpen(true)}/>
+            <PanelView 
+                headerTitle={projectName} 
+                projectKey={projectKey} 
+                content={renderMainContent()} 
+                showViewToggle={columns.length > 0} 
+                viewMode={viewMode} 
+                onToggleView={handleToggleViewMode} 
+                showSettings={true} 
+                onEditProject={() => openEditModal('project')} 
+                onDeleteProject={handleDeleteProject} 
+                onAddList={() => setIsListModalOpen(true)}
+                onShowDetails={() => setIsDetailsModalOpen(true)} // 3. PODŁĄCZENIE AKCJI "SHOW DETAILS"
+            />
+
+            <Modal 
+                isOpen={modalForm.isOpen} 
+                onClose={closeModal} 
+                title={
+                    modalForm.type === 'project' 
+                        ? "Edit Project" 
+                        : (modalForm.isEdit ? "Edit Task" : "Create New Task")
+                } 
+                formId="universalForm"
+                submitLabel={modalForm.isEdit ? "Save Changes" : "Create"}
+            >
+                {modalForm.type === 'project' ? (
+                    <CreateProject 
+                        projectForm={modalForm} 
+                        handleInputChange={handleInputChange} 
+                        handlePriorityChange={handlePriorityChange} 
+                        handleSubmit={handleSaveForm} 
+                    />
+                ) : (
+                    <CreateTask 
+                        taskForm={modalForm} 
+                        handleInputChange={handleInputChange} 
+                        handlePriorityChange={handlePriorityChange} 
+                        handleCreateTask={handleSaveForm} 
+                        setTaskForm={setModalForm} 
+                    />
+                )}
+            </Modal>
+            <Modal 
+                isOpen={isDetailsModalOpen} 
+                onClose={() => setIsDetailsModalOpen(false)} 
+                title="Project Details"
+                formId="projectDetailsForm"
+                submitLabel="Close"
+            >
+                <ProjectDetailsModal 
+                    name={projectName}
+                    members={["only you"]}
+                    tags={[]}
+                    description={projectDesc}
+                    githubRepo={projectGithubRepo}
+                />
+            </Modal>
 
             <Modal isOpen={isListModalOpen} onClose={() => setIsListModalOpen(false)} title="Create new list" formId="createListForm">
                 <form id="createListForm" onSubmit={handleCreateList}>
@@ -574,10 +644,6 @@ export default function ProjectDetailsPage() {
                 <form id="renameListForm" onSubmit={handleRenameList}>
                     <input type="text" placeholder="List name..." value={renameListModal.name} onChange={(e) => setRenameListModal(prev => ({ ...prev, name: e.target.value }))} autoFocus className="modalInput" required/>
                 </form>
-            </Modal>
-
-            <Modal isOpen={taskForm.isOpen} onClose={closeTaskModal} title={taskForm.isEdit ? "Edit Task" : "Create New Task"} formId="createTaskForm">
-                <CreateTask taskForm={taskForm} handleInputChange={handleInputChange} handlePriorityChange={handlePriorityChange} handleCreateTask={handleCreateOrUpdateTask} setTaskForm={setTaskForm}/>
             </Modal>
         </DragDropContext>
     );

@@ -231,21 +231,50 @@
     color: #E6EDF3;
 }
 
-.modalOverlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(4px);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000;
+/* Kontener grupy tytułu (np. na kafelku lub w wierszu) */
+.taskTitleGroup,
+.taskTopRow,
+.taskTitleCell,
+.subtaskTitleCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  /* Badge z ID zadania */
+  .taskIdBadge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: #21262d;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background-color: #30363d;
+      color: #c9d1d9;
+    }
+
+    &.copied {
+      background-color: #238636;
+      color: #ffffff;
+      border-color: #238636;
+    }
+
+    /* Wariacja dla listy subzadań */
+    &.subtask {
+      font-size: 0.7rem;
+      padding: 1px 5px;
+      margin-right: 6px;
+    }
+  }
 }
 
-.modalContent {
+/* .modalContent {
     background: #111419;
     border: 1px solid #30363D;
     border-radius: 16px;
@@ -261,24 +290,6 @@
     color: #E6EDF3;
     font-size: 1.1rem;
     font-weight: 500;
-}
-
-.modalInput {
-    width: 100%;
-    background: #090B0E;
-    border: 1px solid #30363D;
-    border-radius: 8px;
-    padding: 0.8rem 1rem;
-    color: #E6EDF3;
-    font-family: 'Roboto', sans-serif;
-    font-size: 0.95rem;
-    margin-bottom: 1.5rem;
-    outline: none;
-    transition: border-color 0.2s ease;
-}
-
-.modalInput:focus {
-    border-color: #646870;
 }
 
 .modalActions {
@@ -325,7 +336,7 @@
     background: #30363D;
     color: #646870;
     cursor: not-allowed;
-}
+} */
 
 .loading {
     font-family: 'JetBrains Mono', monospace;

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from typing import Optional
 import os
+import re
 from dotenv import load_dotenv
 from pathlib import Path
 import uuid
@@ -179,12 +180,18 @@ def create_new_project(project_data: schemas.ProjectCreate, db: Session = Depend
     existing_key = db.query(models.Project).filter(models.Project.project_key == project_data.project_key).first()
     if existing_key:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project with this key already exists.")
+
+    github_repo_clean = None
+    if project_data.github_repo:
+        github_repo_clean = project_data.github_repo.strip().rstrip("/").removesuffix(".git")
+
     new_project = models.Project(
         name=project_data.name,
         project_key=project_data.project_key,
         desc=project_data.desc, 
         deadline=project_data.deadline,
         priority=project_data.priority,
+        github_repo=github_repo_clean,
         owner_id=current_user.id
     )
     db.add(new_project)
@@ -209,6 +216,7 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
         "name": project.name,
         "project_key": project.project_key,
         "desc": project.desc,
+        "github_repo": project.github_repo,
         "deadline": str(project.deadline) if project.deadline else None,
         "priority": project.priority,
         "progress": project.progress_prec,
@@ -302,6 +310,38 @@ def create_task(project_id: int, column_id: int, task_data: schemas.TaskCreate, 
         
     update_project_progress(project_id, db)
     return new_task
+@app.put("/api/projects/{project_id}", response_model=schemas.ProjectResponse)
+def update_project(
+    project_id: int, 
+    project_data: schemas.ProjectUpdate, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    project = db.query(models.Project).filter(
+        models.Project.id == project_id, 
+        models.Project.owner_id == current_user.id
+    ).first()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found or access denied")
+
+    project.name = project_data.name
+    project.desc = project_data.desc
+    project.priority = project_data.priority
+
+    if project_data.github_repo:
+        project.github_repo = project_data.github_repo.strip().rstrip("/").removesuffix(".git")
+    else:
+        project.github_repo = None
+    
+    if project_data.deadline:
+        project.deadline = datetime.combine(project_data.deadline, datetime.min.time())
+    else:
+        project.deadline = None
+
+    db.commit()
+    db.refresh(project)
+    return project
 
 @app.delete("/api/projects/{project_id}", status_code=200)
 def delete_project(project_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -477,3 +517,25 @@ def toggle_any_task_complete(task_id: int, toggle: schemas.TaskProgressToggle, d
                 } for st in updated_subtasks
             ]
         }
+from fastapi import FastAPI, Request, status
+
+@app.post("/api/webhooks/github")
+async def github_webhook(request: Request):  # <--- Musi być jawnie wpisany typ Request!
+    # Pobieramy surowy JSON przesłany przez GitHub
+    payload = await request.json()
+    
+    commits = payload.get("commits", [])
+    print(f"Otrzymano webhook z GitHuba. Liczba commitów: {len(commits)}")
+    
+    for commit in commits:
+        message = commit.get("message", "")
+        print(f"Wiadomość commita: {message}")
+        
+        # Szukamy identyfikatora zadania np. #12 lub #12.1
+        match = re.search(r'#(\d+(\.\d+)?)', message)
+        if match:
+            task_id = match.group(1)
+            print(f"Znaleziono ID zadania: #{task_id}")
+            # Tutaj wstaw logikę zmiany statusu zadania w bazie danych
+            
+    return {"status": "success", "message": "Webhook processed"}

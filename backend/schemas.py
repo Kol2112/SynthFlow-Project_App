@@ -41,6 +41,14 @@ class ProjectCreate(BaseModel):
     deadline: Optional[date] = None
     priority: str = "Low"
     tags: Optional[str] = None
+    github_repo: Optional[str] = None
+
+class ProjectUpdate(BaseModel):
+    name: str
+    desc: Optional[str] = None
+    deadline: Optional[date] = None
+    priority: str = "Low"
+    github_repo: Optional[str] = None
 
 class ProjectResponse(BaseModel):
     id: int
@@ -51,6 +59,7 @@ class ProjectResponse(BaseModel):
     priority: str
     progress_prec: int
     tags: Optional[str] = None
+    github_repo: Optional[str] = None
     owner_id: int
 
     class Config:
@@ -117,3 +126,4 @@ class TaskResponse(BaseModel):
 
 class TaskProgressToggle(BaseModel):
     is_done: bool
+

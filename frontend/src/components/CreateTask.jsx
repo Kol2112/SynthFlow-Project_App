@@ -33,7 +33,7 @@ export default function CreateTask({ taskForm, handleInputChange, handlePriority
     }
 
     return (
-        <form onSubmit={handleCreateTask} className="createProject" id="createTaskForm">
+        <form onSubmit={handleCreateTask} className="createProject" id="universalForm">
             <div className="leftColumn">
                 <label>Task Name</label>
                 <input type="text" name="name"placeholder="e.g., Implementing Auth Logic" value={taskForm.name}onChange={handleInputChange}requiredautoFocus m/>

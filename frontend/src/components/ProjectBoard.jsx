@@ -6,12 +6,17 @@ import PriorityDots from "./utils/PriorityDots.jsx";
 import {useDeleteProject} from "./utils/helperFunctions.js";
 import '../styles/ProjectBoard.css'
 import '../styles/DropDown.css'
-export default function ProjectBoard({ projectId, projectKey, projectTitle, members, complete, date, priority, onDelete }){
+
+// 1. Dodajemy onEdit do propsów komponentu:
+export default function ProjectBoard({ projectId, projectKey, projectTitle, members, complete, date, priority, onDelete, onEdit }){
     const [isOpen, setIsOpen] = useState(false);
+    // 2. USUNIĘTO: const [onEdit, setIsEdit] = useState(false) <-- to blkowało działanie!
+    
     const dropdownRef = useRef(null);
     const formattedDate = date ? new Date(date).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : "No deadline";
     const currentDate = new Date().toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const deleteProject = useDeleteProject();
+
     useEffect(()=>{
         const handleClickOutside = (event) =>{
             if(dropdownRef.current && !dropdownRef.current.contains(event.target)){
@@ -24,7 +29,6 @@ export default function ProjectBoard({ projectId, projectKey, projectTitle, memb
 
     const handleDelete = async (e) => {
         e.preventDefault();
-    
         await deleteProject({
             projectId,
             onDeleteSuccess: (id) => {
@@ -36,29 +40,31 @@ export default function ProjectBoard({ projectId, projectKey, projectTitle, memb
             }
         });
     };
-return (
+
+    return (
         <div className="projectBoardBody">
             <div className='projectBoardContent'>
                 <p className="projectContentKey">{projectKey}</p>
                 <h3 className="projectContentTitle">{projectTitle}</h3>
                 
                 <div className=" dropdown" ref={dropdownRef}>
-                    <button className="meatball-btn" aria-label="Więcej opcji" onClick={()=>setIsOpen(!isOpen)}>
+                    <button className="meatball-btn" aria-label="More options" onClick={()=>setIsOpen(!isOpen)}>
                         <span className="dot"></span>
                         <span className="dot"></span>
                         <span className="dot"></span>
-
                     </button>
                     {isOpen && (
-                            <ul className="dropdownElementsContainer">
-                                <li key={1}><Link to={`/dashboard/project/${projectKey}`} className="dropdown-link">Details</Link></li>
-                                <li key={2}>Edit</li>
-                                <li key={3} onClick={handleDelete}><Link className="warning">Delete</Link></li>
-                            </ul>
+                        <ul className="dropdownElementsContainer">
+                            <li key={1}><Link to={`/dashboard/project/${projectKey}`} className="dropdown-link">Details</Link></li>
+                            
+                            {/* 3. Wywołujemy przekazaną z zewnątrz funkcję onEdit */}
+                            <li key={2} onClick={() => { setIsOpen(false); if (onEdit) onEdit(projectId); }}>Edit</li>
+                            
+                            <li key={3} onClick={handleDelete}><Link className="warning">Delete</Link></li>
+                        </ul>
                     )}
                 </div>
 
-                
                 <div className="projectContentMembers">
                     <p className='itemMember'>Members</p>
                     <p className='itemAvatar'>{members || "Only you"}</p>

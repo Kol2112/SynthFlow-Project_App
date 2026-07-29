@@ -1,15 +1,26 @@
-import {Droppable, Draggable} from "@hello-pangea/dnd";
+import { useState } from 'react';
+import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { IoEllipsisHorizontal } from "react-icons/io5";
-import {FaRegCalendar} from "react-icons/fa";
+import { FaRegCalendar } from "react-icons/fa";
 
-export default function ProjectKanbanView({columns = [], activeColumnDropdown, setActiveColumnDropdown, activeTaskDropdown, setActiveTaskDropdown, onOpenAddTaskModal, onOpenEditTaskModal, onDeleteList, onRenameListModal, onDeleteTask, onMoveTask, onToggleTaskComplete, onOpenAddListModal}){
+export default function ProjectKanbanView({ columns = [], activeColumnDropdown, setActiveColumnDropdown, activeTaskDropdown, setActiveTaskDropdown, onOpenAddTaskModal, onOpenEditTaskModal, onDeleteList, onRenameListModal, onDeleteTask, onMoveTask, onToggleTaskComplete, onOpenAddListModal }) {
+    const [copiedId, setCopiedId] = useState(null);
+
+    const handleCopyId = (e, taskId) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(`#${taskId}`);
+        setCopiedId(taskId);
+        setTimeout(() => setCopiedId(null), 1500);
+    };
+
     const currentDate = new Date().toLocaleDateString('pl-PL', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
     });
-    if(columns.length === 0){
-        return(
+
+    if (columns.length === 0) {
+        return (
             <div className="emptyBoardContainer">
                 <button className="emptyBoardPlusBtn" onClick={onOpenAddListModal}>
                     <span className="hugePlusIcon">+</span>
@@ -18,7 +29,8 @@ export default function ProjectKanbanView({columns = [], activeColumnDropdown, s
             </div>
         );
     }
-return (
+
+    return (
         <Droppable droppableId="board-columns" direction="horizontal" type="column">
             {(provided) => (
                 <div className="kanbanBoard" ref={provided.innerRef} {...provided.droppableProps}>
@@ -36,7 +48,7 @@ return (
                                         }}>
                                             <button className="columnOptionsBtn"><IoEllipsisHorizontal /></button>
                                             {activeColumnDropdown === column.id && (
-                                                <ul className="dropdownElementsContainer" style={{ width: 'max-content', minWidth: '110px' }}>
+                                                <ul className="dropdownElementsContainer">
                                                     <li onClick={() => onRenameListModal(column)}>Rename</li>
                                                     <li onClick={() => onDeleteList(column.id)}><span className='warning'>Delete</span></li>
                                                 </ul>
@@ -50,10 +62,18 @@ return (
                                                 {column.tasks && column.tasks.map((task, taskIndex) => (
                                                     <Draggable key={task.id} draggableId={String(task.id)} index={taskIndex}>
                                                         {(taskDraggableProvided) => (
-                                                            <div className="taskCard"ref={taskDraggableProvided.innerRef} {...taskDraggableProvided.draggableProps} {...taskDraggableProvided.dragHandleProps}
->
+                                                            <div className="taskCard" ref={taskDraggableProvided.innerRef} {...taskDraggableProvided.draggableProps} {...taskDraggableProvided.dragHandleProps}>
                                                                 <div className="taskTopRow">
-                                                                    <span className="taskName">{task.name}</span>
+                                                                    <div className="taskTitleGroup">
+                                                                        <span 
+                                                                            onClick={(e) => handleCopyId(e, task.id)}
+                                                                            title="Click to copy task ID for commit"
+                                                                            className={`taskIdBadge ${copiedId === task.id ? 'copied' : ''}`}
+                                                                        >
+                                                                            {copiedId === task.id ? 'Copied!' : `#${task.id}`}
+                                                                        </span>
+                                                                        <span className="taskName">{task.name}</span>
+                                                                    </div>
                                                                     
                                                                     <div className="dropdown" onClick={(e) => {
                                                                         e.stopPropagation();
@@ -62,7 +82,7 @@ return (
                                                                     }}>
                                                                         <button className="taskOptionsBtn"><IoEllipsisHorizontal /></button>
                                                                         {activeTaskDropdown === task.id && (
-                                                                            <ul className="dropdownElementsContainer" style={{ width: 'max-content', minWidth: '110px' }}>
+                                                                            <ul className="dropdownElementsContainer">
                                                                                 <li onClick={() => onOpenEditTaskModal(column.id, task)}>Edit</li>
                                                                                 
                                                                                 <li className="moveSubmenuTrigger" onClick={(e) => e.stopPropagation()}>

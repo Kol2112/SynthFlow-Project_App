@@ -13,7 +13,7 @@ SECRET_KEY = 'HAS'
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-#Hashowanie haseł
+#Hashowanie haseł   
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)

@@ -2,24 +2,43 @@
     position: relative;
     z-index: 9999;
 }
-.modalOverlay{
-position: fixed;
+.modalOverlay {
+    position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(4px);
     display: flex;
     justify-content: center;
     align-items: center;
-}
-.modalWindow{
+    z-index: 2000;
+}   
+.modalWindow {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     background-color: #161B22;
     border-radius: 30px;
     box-shadow: 8px 8px 5px rgba(0,0,0,0.5);
+    border: 1px solid #30363D;
+    overflow-y: auto;
+    box-sizing: border-box;
 }
 
+@media (max-width: 480px) {
+    .modalWindow {
+        width: 95vw;
+        border-radius: 20px;
+    }
+}
+.modalBody{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
 .modalTitle{
     padding: 2rem;
     color: #E6EDF3;
@@ -30,12 +49,14 @@ position: fixed;
 .controlButton{
     display: flex;
     justify-content: space-evenly;
+    width: 100%;
     .closeButton, .createButton{
         background: rgba(139, 148, 158, 0.3);
         box-shadow: 8px 8px 5px rgba(0,0,0,0.5);
-        width: 30%;
+        width: auto;
         height: 2.5rem;
         margin: 2rem;
+        padding: 0 1rem;
         border: none;
         border-radius: 36px;
         font-family: 'JetBrains Mono', monospace;
@@ -111,6 +132,27 @@ position: fixed;
 .modalTextArea:focus, .modalSelect:focus, .modalInputDate:focus {
     border-color: #D2BCFD;
 }
+#renameListForm{
+    display: flex;
+    width: 100%;
+}
+.modalInput {
+    width: 80%;
+    background: #090B0E;
+    border: 1px solid #30363D;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    color: #E6EDF3;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.95rem;
+    margin: auto;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.modalInput:focus {
+    border-color: #646870;
+}
 
 .modalSelect {
     width: 100%;
@@ -138,3 +180,4 @@ position: fixed;
     font-size: 0.9rem;
     outline: none;
 }
+

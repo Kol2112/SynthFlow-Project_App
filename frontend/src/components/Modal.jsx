@@ -1,7 +1,7 @@
 import {createPortal} from 'react-dom';
 
 import '../styles/Modal.css'
-export default function Modal({isOpen, onClose, title, children, formId = "createProjectForm"}){
+export default function Modal({isOpen, onClose, title, children, formId = "universalForm", submitLabel="Create"}){
     if (!isOpen) return null;
     return createPortal(
         <div className="modalOverlay">
@@ -13,7 +13,7 @@ export default function Modal({isOpen, onClose, title, children, formId = "creat
                     {children}
                     <div className='controlButton'>
                         <button className='closeButton' onClick={onClose}>Cancel</button>
-                        <button className='createButton' type="submit" form={formId}>Create</button>
+                        <button className='createButton' type="submit" form={formId}>{submitLabel}</button>
                     </div>
                 </div>
             </div>

@@ -1,0 +1,160 @@
+.projectDetailsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    width: 100%;
+    max-width: 600px; /* Szerszy modal w widoku desktopowym */
+    box-sizing: border-box;
+    color: #E6EDF3;
+    font-family: 'Roboto', sans-serif;
+    padding: 0.5rem 1rem;
+}
+
+.projectDetailsField {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.projectDetailsLabel {
+    color: #8B949E;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.projectDetailsName {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 500;
+    color: #E6EDF3;
+    font-family: 'JetBrains Mono', monospace;
+    background-color: #090B0E;
+    border: 1px solid #30363D;
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    word-break: break-word;
+}
+
+.projectDetailsList {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.projectDetailsMemberBadge {
+    background-color: #21262D;
+    border: 1px solid #30363D;
+    color: #C9D1D9;
+    padding: 0.4rem 0.8rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.projectDetailsTagBadge {
+    background: #3E285C;
+    color: #D2BCFD;
+    border: 1px solid #4A2C70;
+    padding: 0.4rem 0.8rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.projectDetailsEmptyText {
+    font-style: italic;
+    color: #646870;
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.projectDetailsDescription {
+    margin: 0;
+    white-space: pre-wrap;
+    line-height: 1.5;
+    background-color: #090B0E;
+    border: 1px solid #30363D;
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    color: #C9D1D9;
+    font-size: 0.95rem;
+    min-height: 80px;
+    box-sizing: border-box;
+    word-break: break-word;
+}
+
+/* Responsywność mobilna */
+@media (max-width: 640px) {
+    .projectDetailsContainer {
+        padding: 0;
+        max-width: 100%;
+        gap: 1rem;
+    }
+
+    .projectDetailsName,
+    .projectDetailsDescription {
+        padding: 0.7rem;
+        font-size: 0.9rem;
+    }
+
+    .projectDetailsMemberBadge,
+    .projectDetailsTagBadge {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.78rem;
+    }
+}
+
+.projectDetailsContainer {
+  /* GitHub Repo Link */
+  .projectDetailsGithubLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #58a6ff;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  /* GitHub Webhook Row */
+  .webhookRowContainer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .webhookInput {
+      flex: 1;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background-color: #0d1117;
+      color: #c9d1d9;
+      font-size: 0.85rem;
+    }
+
+    .webhookCopyBtn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      background-color: #21262d;
+      color: #f0f6fc;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background-color: #30363d;
+      }
+
+      &.copied {
+        background-color: #238636;
+      }
+    }
+  }
+}
