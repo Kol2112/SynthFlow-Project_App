@@ -235,13 +235,14 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
                         "savedProgressBackend": t.saved_progress,
                         "subtasks": [
                             {
-                                "id": st.id,
+                                "id": f"{t.id}_{idx + 1}",
+                                "db_id": st.id,
                                 "name": st.name,
                                 "is_done": st.is_done,
                                 "isCompleted": st.is_done,
                                 "progress_prec": 100 if st.is_done else 0,
                                 "savedProgress": 100 if st.is_done else 0
-                            } for st in t.subtasks
+                            } for idx, st in enumerate(t.subtasks)
                         ]
                     } for t in col.tasks
                 ]
@@ -461,31 +462,21 @@ def toggle_any_task_complete(task_id: int, toggle: schemas.TaskProgressToggle, d
     subtasks = db.query(models.Subtask).filter(models.Subtask.task_id == task_id).all() or []
 
     if toggle.is_done:
-        # ZAPISUJEMY OBECNY PROGRES przed szybkim ukończeniem
         task.saved_progress = task.progress_prec
-        
-        # Oznaczamy całe zadanie i wszystkie subtaski jako wykonane
         task.progress_prec = 100
         for sub in subtasks:
             sub.is_done = True
     else:
-        # ODZNACZANIE GŁÓWNEGO ZADANIA:
-        # Sprawdzamy, czy zadanie było wcześniej ukończone "naturalnie" (wszystkie subtaski zrobione i saved_progress == 100 lub brak saved_progress)
         if task.saved_progress == 100 or task.saved_progress == 0 or not subtasks:
-            # Sytuacja 1: Zadanie było wykonane w pełni (np. 5/5 subtasków) -> ZERUJEMY
             task.progress_prec = 0
             task.saved_progress = 0
             for sub in subtasks:
                 sub.is_done = False
         else:
-            # Sytuacja 2: Zadanie było zrobione częściowo (np. 2/5 = 40%) -> PRZYWRACAMY 2/5
             task.progress_prec = task.saved_progress
-            
-            # Przeliczamy ile subtasków powinno być zaznaczonych na podstawie saved_progress
             target_completed_count = int(round((task.saved_progress / 100.0) * len(subtasks)))
             
             for index, sub in enumerate(subtasks):
-                # Zostawiamy pierwsze N subtasków jako ukończone, resztę odznaczamy
                 sub.is_done = index < target_completed_count
                 
             task.saved_progress = 0
@@ -502,13 +493,14 @@ def toggle_any_task_complete(task_id: int, toggle: schemas.TaskProgressToggle, d
         "progress_prec": task.progress_prec,
         "subtasks": [
             {
-                "id": st.id,
+                "id": f"{task.id}_{idx + 1}",
+                "db_id": st.id,
                 "name": st.name,
                 "progress_prec": 100 if st.is_done else 0,
                 "is_done": st.is_done,
                 "isCompleted": st.is_done,
                 "saved_progress": 100 if st.is_done else 0
-            } for st in updated_subtasks
+            } for idx, st in enumerate(updated_subtasks)
         ]
     }
 
@@ -522,13 +514,44 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
         message = commit.get("message", "")
         print(f"Wiadomość commita: {message}")
         
-        match = re.search(r'#(\d+)', message)
-        if match:
-            target_id = int(match.group(1))
-            print(f"Znaleziono ID: #{target_id}")
+        # 1. Szukamy wzorca subtaska np: #150_2 lub #1_1
+        subtask_match = re.search(r'#(\d+)_(\d+)', message)
+        
+        if subtask_match:
+            parent_id = int(subtask_match.group(1))
+            subtask_order_num = int(subtask_match.group(2)) # Np. 2 dla drugiego podzadania
+            print(f"Znaleziono Subtask: Zadanie #{parent_id}, Podzadanie numer: {subtask_order_num}")
+            
+            # Pobieramy subtaski zadania nadrzędnego
+            parent_task = db.query(models.Task).filter(models.Task.id == parent_id).first()
+            if parent_task:
+                subtasks = db.query(models.Subtask).filter(models.Subtask.task_id == parent_id).all()
+                # Indeksowanie w Pythonie jest od 0, więc subtask #150_2 ma indeks 1
+                if 0 < subtask_order_num <= len(subtasks):
+                    target_subtask = subtasks[subtask_order_num - 1]
+                    target_subtask.is_done = True
+                    db.commit()
+                    
+                    # Aktualizujemy postęp rodzica
+                    completed_count = sum(1 for st in subtasks if st.is_done)
+                    new_progress = int((completed_count / len(subtasks)) * 100)
+                    parent_task.progress_prec = new_progress
+                    parent_task.saved_progress = new_progress
+                    
+                    db.commit()
+                    update_project_progress(parent_task.project_id, db)
+                    print(f"Subzadanie #{parent_id}_{subtask_order_num} oznaczone jako wykonane!")
+                else:
+                    print(f"Brak subzadania o numerze porządkowym {subtask_order_num} dla zadania #{parent_id}")
+            continue
+
+        # 2. Jeśli nie dopasowano subtaska, szukamy pojedynczego zadania głównego np: #150
+        main_match = re.search(r'#(\d+)', message)
+        if main_match:
+            target_id = int(main_match.group(1))
+            print(f"Znaleziono ID zadania głównego: #{target_id}")
         
             task = db.query(models.Task).filter(models.Task.id == target_id).first()
-            
             if task:
                 task.progress_prec = 100
                 task.saved_progress = 100
@@ -539,26 +562,8 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
                 
                 db.commit()
                 update_project_progress(task.project_id, db)
-                print(f"Główne zadanie #{target_id} oraz jego {len(subtasks)} podzadań zostały oznaczone jako ukończone!")
+                print(f"Główne zadanie #{target_id} oraz jego podzadania zostały oznaczone jako ukończone!")
             else:
-                subtask = db.query(models.Subtask).filter(models.Subtask.id == target_id).first()
-                if subtask:
-                    subtask.is_done = True
-                    db.commit()
-                    
-                    parent = db.query(models.Task).filter(models.Task.id == subtask.task_id).first()
-                    if parent:
-                        parent_subtasks = db.query(models.Subtask).filter(models.Subtask.task_id == parent.id).all() or []
-                        completed_count = sum(1 for st in parent_subtasks if st.is_done)
-                        
-                        new_parent_progress = int((completed_count / len(parent_subtasks)) * 100) if parent_subtasks else 0
-                        parent.progress_prec = new_parent_progress
-                        parent.saved_progress = new_parent_progress
-                        db.commit()
-                        
-                        update_project_progress(parent.project_id, db)
-                    print(f"Subzadanie #{target_id} zostało oznaczone jako ukończone!")
-                else:
-                    print(f"Nie znaleziono w bazie zadania/subzadania o ID #{target_id}")
+                print(f"Nie znaleziono w bazie zadania o ID #{target_id}")
             
     return {"status": "success", "message": "Webhook processed"}

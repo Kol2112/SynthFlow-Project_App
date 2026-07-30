@@ -457,6 +457,7 @@ export default function ProjectDetailsPage() {
     };
 
 const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTaskId = null) => {
+    // 1. Sprawdzamy tymczasowe ID (zanim zadanie zostanie zapisane w DB)
     if (typeof taskId === 'string' && taskId.startsWith('temp-')) {
         alert("Zapisz najpierw zadanie, aby móc zmieniać status jego podzadań!");
         return;
@@ -464,6 +465,8 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
 
     const nextDoneState = !isCurrentlyDone;
     const token = localStorage.getItem("token");
+
+    // 2. Dynamicznie wybieramy endpoint: dla subtaska lub głównego zadania
     const endpointUrl = parentTaskId 
         ? `http://localhost:8000/api/subtasks/${taskId}/toggle-complete`
         : `http://localhost:8000/api/tasks/${taskId}/toggle-complete`;
@@ -484,12 +487,15 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
         }
 
         const data = await response.json();
+
+        // 3. Aktualizujemy stan kolumn i zadań
         setColumns(prevColumns => (prevColumns || []).map(col => {
             if (col.id !== columnId) return col;
 
             return {
                 ...col,
                 tasks: (col.tasks || []).map(t => {
+                    // PRZYPADEK A: Przełączono SUBTASK (posiada parentTaskId)
                     if (parentTaskId && t.id === parentTaskId) {
                         const updatedSubtasks = (t.subtasks || []).map(st => {
                             if (st.id === taskId) {
@@ -503,8 +509,11 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
                             return st;
                         });
 
+                        // Przeliczamy postęp rodzica na froncie
                         const completedCount = updatedSubtasks.filter(st => st.is_done || st.progress_prec === 100).length;
-                        const calculatedProgress = updatedSubtasks.length > 0 ? Math.round((completedCount / updatedSubtasks.length) * 100) : t.progress;
+                        const calculatedProgress = updatedSubtasks.length > 0 
+                            ? Math.round((completedCount / updatedSubtasks.length) * 100) 
+                            : t.progress;
 
                         return {
                             ...t,
@@ -514,6 +523,7 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
                         };
                     }
 
+                    // PRZYPADEK B: Przełączono GŁÓWNE ZADANIE
                     if (!parentTaskId && t.id === taskId) {
                         const serverSubtasks = data.subtasks || [];
                         

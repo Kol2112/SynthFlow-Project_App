@@ -101,6 +101,26 @@ export default function MainPage(){
             } catch (err) {
                 console.error("Error updating project:", err);
             }
+        } else {
+            const payload = {
+                name: modalForm.name,
+                project_key: modalForm.projectKey,
+                desc: modalForm.desc || null,
+                priority: modalForm.priority,
+                deadline: modalForm.deadline || null,
+                github_repo: modalForm.githubRepo || null
+            };
+
+            try {
+                const response = await axios.post('http://localhost:8000/api/projects', payload, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                setProjects(prev => [...prev, response.data]);
+                setIsOpen(false);
+            } catch (err) {
+                console.error("Error creating project:", err);
+            }
         }
     };
 
