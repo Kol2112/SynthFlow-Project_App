@@ -2,22 +2,22 @@ from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, date
 from typing import Optional, List, Union
 
-#Schemat użytkownika
+# Schemat użytkownika
 
 class UserRegister(BaseModel):
-    email:EmailStr
-    password: str = Field(..., min_length=8, description = "Hasło musi mieć minimum 8 znaków")
+    email: EmailStr
+    password: str = Field(..., min_length=8, description="Hasło musi mieć minimum 8 znaków")
     name: str = Field(..., min_length=2, max_length=50)
     surname: str = Field(..., min_length=2, max_length=50)
     birth_date: Optional[datetime] = None
 
-#Schemat logowania
+# Schemat logowania
 
 class UserLogin(BaseModel):
-    email:EmailStr
-    password:str
+    email: EmailStr
+    password: str
 
-#Schemat dla frontendu
+# Schemat dla frontendu
 class UserResponse(BaseModel):
     id: int
     email: EmailStr
@@ -31,8 +31,8 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 class TokenResponse(BaseModel):
-    access_token:str
-    token_type:str
+    access_token: str
+    token_type: str
 
 class ProjectCreate(BaseModel):
     name: str
@@ -83,24 +83,24 @@ class ColumnOrderUpdate(BaseModel):
 class SubtaskSchema(BaseModel):
     id: Optional[str] = None
     name: str
-    is_done: bool
+    is_done: bool = False
 
 class SubTaskCreate(BaseModel):
     id: Optional[Union[int, str]] = None
     name: str
-    is_done: bool
+    is_done: bool = False
 
 class SubTaskResponse(BaseModel):
     id: int
     name: str
     is_done: bool
+    task_id: int
 
     class Config:
         from_attributes = True
 
-
 class TaskCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length =100)
+    name: str = Field(..., min_length=1, max_length=100)
     desc: Optional[str] = None
     priority: str = "Low"
     start_date: Optional[date] = None
@@ -126,4 +126,3 @@ class TaskResponse(BaseModel):
 
 class TaskProgressToggle(BaseModel):
     is_done: bool
-

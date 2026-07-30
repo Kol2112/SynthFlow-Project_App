@@ -186,6 +186,12 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                             <div className={`taskStatusCheckCircle ${isSubDone ? 'completed' : ''}`}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                // Sprawdzamy czy subtask posiada prawdziwe ID z bazy danych
+                                if (typeof subtask.id === 'string' && subtask.id.startsWith('temp-')) {
+                                  alert("Zapisz najpierw zadanie, aby móc zmieniać status nowych podzadań!");
+                                  return;
+                                }
+                                
                                 if (onToggleSubtaskComplete) {
                                   onToggleSubtaskComplete(column.id, task.id, subtask.id, isSubDone);
                                 }

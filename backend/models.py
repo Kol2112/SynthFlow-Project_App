@@ -1,7 +1,6 @@
 import enum
-import datetime
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Table, Enum, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -21,7 +20,7 @@ class TaskStatus(str, enum.Enum):
 # Priorytety zadań i projektów
 class TaskPriority(str, enum.Enum):
     LOW = "Low"
-    MEDMIUM = "Medium"
+    MEDIUM = "Medium"
     HIGH = "High"
     CRITICAL = "Critical"
 
@@ -79,7 +78,6 @@ class Project(Base):
     logs = relationship("ActivityLog", back_populates="project", cascade="all, delete-orphan")
 
 
-
 class TaskColumn(Base):
     __tablename__ = "task_columns"
 
@@ -100,9 +98,8 @@ class Task(Base):
     name = Column(String, index=True, nullable=False)
     desc = Column(Text, nullable=True)
     priority = Column(Enum(TaskPriority), default=TaskPriority.LOW, nullable=False)
-    # status = Column(Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
     deadline = Column(DateTime, nullable=True)
-    start_date = Column(DateTime, nullable=True) # Dodano start_date
+    start_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     saved_progress = Column(Integer, default=0, nullable=False)
@@ -111,17 +108,29 @@ class Task(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     column_id = Column(Integer, ForeignKey("task_columns.id", ondelete="CASCADE"), nullable=True)
     assignee_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    parent_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True)
 
     project = relationship("Project", back_populates="tasks")
     column = relationship("TaskColumn", back_populates="tasks")
     assignee = relationship("User", back_populates="assigned_tasks")
     
-    parent = relationship("Task", remote_side=[id], back_populates="subtasks")
-    subtasks = relationship("Task", back_populates="parent", cascade="all, delete-orphan")
+    subtasks = relationship("Subtask", back_populates="task", cascade="all, delete-orphan")
+
     @property
     def is_done(self) -> bool:
         return self.progress_prec == 100
+
+
+# Osobna tabela subzadań
+class Subtask(Base):
+    __tablename__ = "subtasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    is_done = Column(Boolean, default=False, nullable=False)
+    
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+
+    task = relationship("Task", back_populates="subtasks")
 
 
 # Tabela logów

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, BackgroundTasks, Depends, HTTPException, status
+from fastapi import FastAPI, BackgroundTasks, Depends, HTTPException, status, Request
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -97,10 +97,7 @@ def update_project_progress(project_id: int, db: Session):
     project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not project:
         return
-    main_tasks = db.query(models.Task).filter(
-        models.Task.project_id == project_id,
-        models.Task.parent_id == None
-    ).all()
+    main_tasks = db.query(models.Task).filter(models.Task.project_id == project_id).all()
     if not main_tasks:
         project.progress_prec = 0
     else:
@@ -240,13 +237,13 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
                             {
                                 "id": st.id,
                                 "name": st.name,
-                                "is_done": st.progress_prec == 100,
-                                "isCompleted": st.progress_prec == 100,
-                                "progress_prec": st.progress_prec,
-                                "savedProgress": st.saved_progress
+                                "is_done": st.is_done,
+                                "isCompleted": st.is_done,
+                                "progress_prec": 100 if st.is_done else 0,
+                                "savedProgress": 100 if st.is_done else 0
                             } for st in t.subtasks
                         ]
-                    } for t in col.tasks if t.parent_id is None
+                    } for t in col.tasks
                 ]
             } for col in columns
         ]
@@ -291,14 +288,10 @@ def create_task(project_id: int, column_id: int, task_data: schemas.TaskCreate, 
         total = len(task_data.subtasks)
         completed = 0
         for st in task_data.subtasks:
-            init_progress = 100 if st.is_done else 0
-            sub = models.Task(
-                name=st.name, 
-                project_id=project_id, 
-                column_id=column_id, 
-                parent_id=new_task.id, 
-                progress_prec=init_progress,
-                saved_progress=init_progress
+            sub = models.Subtask(
+                name=st.name,
+                is_done=st.is_done,
+                task_id=new_task.id
             )
             db.add(sub)
             if st.is_done:
@@ -310,6 +303,7 @@ def create_task(project_id: int, column_id: int, task_data: schemas.TaskCreate, 
         
     update_project_progress(project_id, db)
     return new_task
+
 @app.put("/api/projects/{project_id}", response_model=schemas.ProjectResponse)
 def update_project(
     project_id: int, 
@@ -394,20 +388,16 @@ def update_task(project_id: int, column_id: int, task_id: int, task_data: schema
     task.deadline = datetime.combine(task_data.deadline, datetime.min.time()) if task_data.deadline else None
     task.start_date = datetime.combine(task_data.start_date, datetime.min.time()) if task_data.start_date else None
     
-    db.query(models.Task).filter(models.Task.parent_id == task.id).delete()
+    db.query(models.Subtask).filter(models.Subtask.task_id == task.id).delete()
 
     if task_data.subtasks:
         total = len(task_data.subtasks)
         completed = 0
         for st in task_data.subtasks:
-            init_progress = 100 if st.is_done else 0
-            sub = models.Task(
-                name=st.name, 
-                project_id=project_id, 
-                column_id=column_id, 
-                parent_id=task.id, 
-                progress_prec=init_progress,
-                saved_progress=init_progress
+            sub = models.Subtask(
+                name=st.name,
+                is_done=st.is_done,
+                task_id=task.id
             )
             db.add(sub)
             if st.is_done:
@@ -433,91 +423,94 @@ def move_task(task_id: int, column_id: int, db: Session = Depends(get_db), curre
     db.refresh(task)
     return {"id": task.id, "column_id": task.column_id, "message": "Task moved successfully"}
 
+@app.put("/api/subtasks/{subtask_id}/toggle-complete")
+def toggle_subtask_complete(subtask_id: int, toggle: schemas.TaskProgressToggle, db: Session = Depends(get_db)):
+    subtask = db.query(models.Subtask).filter(models.Subtask.id == subtask_id).first()
+    if not subtask:
+        raise HTTPException(status_code=404, detail="Subtask not found")
+    
+    subtask.is_done = toggle.is_done
+    db.commit()
+
+    parent = db.query(models.Task).filter(models.Task.id == subtask.task_id).first()
+    if parent:
+        parent_subtasks = db.query(models.Subtask).filter(models.Subtask.task_id == parent.id).all() or []
+        completed_count = sum(1 for st in parent_subtasks if st.is_done)
+        
+        new_parent_progress = int((completed_count / len(parent_subtasks)) * 100) if parent_subtasks else 0
+        parent.progress_prec = new_parent_progress
+        parent.saved_progress = new_parent_progress
+        
+        db.commit()
+        db.refresh(parent)
+        update_project_progress(parent.project_id, db)
+
+    return {
+        "type": "subtask",
+        "id": subtask.id,
+        "parent_id": subtask.task_id,
+        "is_done": subtask.is_done
+    }
+
 @app.put("/api/tasks/{task_id}/toggle-complete")
 def toggle_any_task_complete(task_id: int, toggle: schemas.TaskProgressToggle, db: Session = Depends(get_db)):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    subtasks = db.query(models.Task).filter(models.Task.parent_id == task_id).all() or []
-    
-    if task.parent_id:
-        val = 100 if toggle.is_done else 0
-        task.progress_prec = val
-        task.saved_progress = val
-        db.commit()
+    subtasks = db.query(models.Subtask).filter(models.Subtask.task_id == task_id).all() or []
 
-        parent = db.query(models.Task).filter(models.Task.id == task.parent_id).first()
-        if parent:
-            parent_subtasks = db.query(models.Task).filter(models.Task.parent_id == parent.id).all() or []
-            completed_count = sum(1 for st in parent_subtasks if st.progress_prec == 100)
-            
-            new_parent_progress = int((completed_count / len(parent_subtasks)) * 100) if parent_subtasks else 0
-            parent.progress_prec = new_parent_progress
-            
-            parent.saved_progress = new_parent_progress
-            
-            db.commit()
-            db.refresh(parent)
-            update_project_progress(parent.project_id, db)
-
-        return {
-            "type": "subtask",
-            "id": task.id,
-            "parent_id": task.parent_id,
-            "is_done": toggle.is_done,
-            "progress_prec": task.progress_prec
-        }
-
+    if toggle.is_done:
+        # ZAPISUJEMY OBECNY PROGRES przed szybkim ukończeniem
+        task.saved_progress = task.progress_prec
+        
+        # Oznaczamy całe zadanie i wszystkie subtaski jako wykonane
+        task.progress_prec = 100
+        for sub in subtasks:
+            sub.is_done = True
     else:
-        if toggle.is_done:
+        # ODZNACZANIE GŁÓWNEGO ZADANIA:
+        # Sprawdzamy, czy zadanie było wcześniej ukończone "naturalnie" (wszystkie subtaski zrobione i saved_progress == 100 lub brak saved_progress)
+        if task.saved_progress == 100 or task.saved_progress == 0 or not subtasks:
+            # Sytuacja 1: Zadanie było wykonane w pełni (np. 5/5 subtasków) -> ZERUJEMY
+            task.progress_prec = 0
+            task.saved_progress = 0
             for sub in subtasks:
-                sub.saved_progress = sub.progress_prec
-                sub.progress_prec = 100
-            
-            task.saved_progress = task.progress_prec
-            task.progress_prec = 100
+                sub.is_done = False
         else:
-            all_were_100 = len(subtasks) > 0 and all(sub.saved_progress == 100 for sub in subtasks)
-
-            if all_were_100:
-                task.progress_prec = 0
-                task.saved_progress = 0
-                for sub in subtasks:
-                    sub.progress_prec = 0
-                    sub.saved_progress = 0
-            else:
-                for sub in subtasks:
-                    sub.progress_prec = sub.saved_progress
+            # Sytuacja 2: Zadanie było zrobione częściowo (np. 2/5 = 40%) -> PRZYWRACAMY 2/5
+            task.progress_prec = task.saved_progress
+            
+            # Przeliczamy ile subtasków powinno być zaznaczonych na podstawie saved_progress
+            target_completed_count = int(round((task.saved_progress / 100.0) * len(subtasks)))
+            
+            for index, sub in enumerate(subtasks):
+                # Zostawiamy pierwsze N subtasków jako ukończone, resztę odznaczamy
+                sub.is_done = index < target_completed_count
                 
-                if subtasks:
-                    completed_count = sum(1 for sub in subtasks if sub.progress_prec == 100)
-                    task.progress_prec = int((completed_count / len(subtasks)) * 100)
-                else:
-                    task.progress_prec = 0
+            task.saved_progress = 0
 
-        db.commit()
-        db.refresh(task)
-        update_project_progress(task.project_id, db)
+    db.commit()
+    db.refresh(task)
+    update_project_progress(task.project_id, db)
 
-        updated_subtasks = db.query(models.Task).filter(models.Task.parent_id == task_id).all() or []
+    updated_subtasks = db.query(models.Subtask).filter(models.Subtask.task_id == task_id).all() or []
 
-        return {
-            "type": "parent_task",
-            "id": task.id,
-            "progress_prec": task.progress_prec,
-            "subtasks": [
-                {
-                    "id": st.id,
-                    "name": st.name,
-                    "progress_prec": st.progress_prec,
-                    "is_done": st.progress_prec == 100,
-                    "isCompleted": st.progress_prec == 100,
-                    "saved_progress": st.saved_progress
-                } for st in updated_subtasks
-            ]
-        }
-from fastapi import FastAPI, Request, status
+    return {
+        "type": "parent_task",
+        "id": task.id,
+        "progress_prec": task.progress_prec,
+        "subtasks": [
+            {
+                "id": st.id,
+                "name": st.name,
+                "progress_prec": 100 if st.is_done else 0,
+                "is_done": st.is_done,
+                "isCompleted": st.is_done,
+                "saved_progress": 100 if st.is_done else 0
+            } for st in updated_subtasks
+        ]
+    }
 
 @app.post("/api/webhooks/github")
 async def github_webhook(request: Request, db: Session = Depends(get_db)):
@@ -531,31 +524,32 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
         
         match = re.search(r'#(\d+)', message)
         if match:
-            task_id = int(match.group(1))
-            print(f"Znaleziono ID zadania: #{task_id}")
+            target_id = int(match.group(1))
+            print(f"Znaleziono ID: #{target_id}")
         
-            task = db.query(models.Task).filter(models.Task.id == task_id).first()
+            task = db.query(models.Task).filter(models.Task.id == target_id).first()
             
             if task:
                 task.progress_prec = 100
                 task.saved_progress = 100
                 
-                if task.parent_id is None:
-                    subtasks = db.query(models.Task).filter(models.Task.parent_id == task.id).all() or []
-                    for st in subtasks:
-                        st.progress_prec = 100
-                        st.saved_progress = 100
+                subtasks = db.query(models.Subtask).filter(models.Subtask.task_id == task.id).all() or []
+                for st in subtasks:
+                    st.is_done = True
+                
+                db.commit()
+                update_project_progress(task.project_id, db)
+                print(f"Główne zadanie #{target_id} oraz jego {len(subtasks)} podzadań zostały oznaczone jako ukończone!")
+            else:
+                subtask = db.query(models.Subtask).filter(models.Subtask.id == target_id).first()
+                if subtask:
+                    subtask.is_done = True
+                    db.commit()
                     
-                    db.commit()
-                    update_project_progress(task.project_id, db)
-                    print(f"Główne zadanie #{task_id} oraz jego {len(subtasks)} podzadań zostały oznaczone jako ukończone!")
-
-                else:
-                    db.commit()
-                    parent = db.query(models.Task).filter(models.Task.id == task.parent_id).first()
+                    parent = db.query(models.Task).filter(models.Task.id == subtask.task_id).first()
                     if parent:
-                        parent_subtasks = db.query(models.Task).filter(models.Task.parent_id == parent.id).all() or []
-                        completed_count = sum(1 for st in parent_subtasks if st.progress_prec == 100)
+                        parent_subtasks = db.query(models.Subtask).filter(models.Subtask.task_id == parent.id).all() or []
+                        completed_count = sum(1 for st in parent_subtasks if st.is_done)
                         
                         new_parent_progress = int((completed_count / len(parent_subtasks)) * 100) if parent_subtasks else 0
                         parent.progress_prec = new_parent_progress
@@ -563,8 +557,8 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
                         db.commit()
                         
                         update_project_progress(parent.project_id, db)
-                    print(f"Subzadanie #{task_id} zostało oznaczone jako ukończone!")
-            else:
-                print(f"Nie znaleziono w bazie zadania o ID #{task_id}")
+                    print(f"Subzadanie #{target_id} zostało oznaczone jako ukończone!")
+                else:
+                    print(f"Nie znaleziono w bazie zadania/subzadania o ID #{target_id}")
             
     return {"status": "success", "message": "Webhook processed"}

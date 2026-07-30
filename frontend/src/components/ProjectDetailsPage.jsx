@@ -456,89 +456,98 @@ export default function ProjectDetailsPage() {
         }
     };
 
-    const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTaskId = null) => {
-        const nextDoneState = !isCurrentlyDone;
-        const token = localStorage.getItem("token");
+const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTaskId = null) => {
+    if (typeof taskId === 'string' && taskId.startsWith('temp-')) {
+        alert("Zapisz najpierw zadanie, aby móc zmieniać status jego podzadań!");
+        return;
+    }
 
-        try {
-            const response = await fetch(`http://localhost:8000/api/tasks/${taskId}/toggle-complete`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ is_done: nextDoneState })
-            });
+    const nextDoneState = !isCurrentlyDone;
+    const token = localStorage.getItem("token");
+    const endpointUrl = parentTaskId 
+        ? `http://localhost:8000/api/subtasks/${taskId}/toggle-complete`
+        : `http://localhost:8000/api/tasks/${taskId}/toggle-complete`;
 
-            if (!response.ok) throw new Error(`Server status ${response.status}`);
+    try {
+        const response = await fetch(endpointUrl, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ is_done: nextDoneState })
+        });
 
-            const data = await response.json();
-
-            setColumns(prevColumns => (prevColumns || []).map(col => {
-                if (col.id !== columnId) return col;
-
-                return {
-                    ...col,
-                    tasks: (col.tasks || []).map(t => {
-                        if (parentTaskId && t.id === parentTaskId) {
-                            const updatedSubtasks = (t.subtasks || []).map(st => {
-                                if (st.id === taskId) {
-                                    return {
-                                        ...st,
-                                        is_done: nextDoneState,
-                                        isCompleted: nextDoneState,
-                                        progress_prec: nextDoneState ? 100 : 0,
-                                        saved_progress: nextDoneState ? 100 : 0
-                                    };
-                                }
-                                return st;
-                            });
-
-                            const completedCount = updatedSubtasks.filter(st => st.is_done || st.progress_prec === 100).length;
-                            const calculatedProgress = updatedSubtasks.length > 0 ? Math.round((completedCount / updatedSubtasks.length) * 100) : t.progress;
-                            return {
-                                ...t,
-                                subtasks: updatedSubtasks,
-                                progress: calculatedProgress,
-                                progress_prec: calculatedProgress
-                            };
-                        }
-
-                        if (!parentTaskId && t.id === taskId) {
-                            const serverSubtasks = data.subtasks || [];
-                            
-                            const updatedSubtasks = (t.subtasks || []).map(existingSub => {
-                                const match = serverSubtasks.find(s => s.id === existingSub.id);
-                                if (match) {
-                                    return {
-                                        ...existingSub,
-                                        is_done: match.is_done,
-                                        isCompleted: match.is_done,
-                                        progress_prec: match.progress_prec,
-                                        saved_progress: match.saved_progress
-                                    };
-                                }
-                                return existingSub;
-                            });
-
-                            return {
-                                ...t,
-                                progress: data.progress_prec,
-                                progress_prec: data.progress_prec,
-                                subtasks: updatedSubtasks
-                            };
-                        }
-
-                        return t;
-                    })
-                };
-            }));
-
-        } catch (error) {
-            console.error("Error toggling completion:", error);
-            alert("Błąd połączenia z serwerem.");
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.detail || `Server status ${response.status}`);
         }
-    };
+
+        const data = await response.json();
+        setColumns(prevColumns => (prevColumns || []).map(col => {
+            if (col.id !== columnId) return col;
+
+            return {
+                ...col,
+                tasks: (col.tasks || []).map(t => {
+                    if (parentTaskId && t.id === parentTaskId) {
+                        const updatedSubtasks = (t.subtasks || []).map(st => {
+                            if (st.id === taskId) {
+                                return {
+                                    ...st,
+                                    is_done: nextDoneState,
+                                    isCompleted: nextDoneState,
+                                    progress_prec: nextDoneState ? 100 : 0
+                                };
+                            }
+                            return st;
+                        });
+
+                        const completedCount = updatedSubtasks.filter(st => st.is_done || st.progress_prec === 100).length;
+                        const calculatedProgress = updatedSubtasks.length > 0 ? Math.round((completedCount / updatedSubtasks.length) * 100) : t.progress;
+
+                        return {
+                            ...t,
+                            subtasks: updatedSubtasks,
+                            progress: calculatedProgress,
+                            progress_prec: calculatedProgress
+                        };
+                    }
+
+                    if (!parentTaskId && t.id === taskId) {
+                        const serverSubtasks = data.subtasks || [];
+                        
+                        const updatedSubtasks = (t.subtasks || []).map(existingSub => {
+                            const match = serverSubtasks.find(s => s.id === existingSub.id);
+                            if (match) {
+                                return {
+                                    ...existingSub,
+                                    is_done: match.is_done,
+                                    isCompleted: match.is_done,
+                                    progress_prec: match.progress_prec
+                                };
+                            }
+                            return existingSub;
+                        });
+
+                        return {
+                            ...t,
+                            progress: data.progress_prec,
+                            progress_prec: data.progress_prec,
+                            subtasks: updatedSubtasks
+                        };
+                    }
+
+                    return t;
+                })
+            };
+        }));
+
+    } catch (error) {
+        console.error("Error toggling completion:", error);
+        alert(`Błąd połączenia z serwerem: ${error.message}`);
+    }
+};
 
     const renderMainContent = () => {
         if (isLoading) {
