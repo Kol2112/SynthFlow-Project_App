@@ -6,16 +6,19 @@ import Modal from './Modal.jsx';
 import PanelView from './PanelView.jsx';
 import CreateTask from './CreateTask.jsx';
 import CreateProject from './CreateProject.jsx';
-import ProjectDetailsModal from './ProjectDetailsModal.jsx'; // 1. IMPORT
+import ProjectDetailsModal from './ProjectDetailsModal.jsx';
 import ProjectKanbanView from './ProjectKanbanView.jsx';
 import ProjectListView from './ProjectListView.jsx';
-
+import ErrorMsg from './utils/ErrorMsg.jsx';
 import { useDeleteProject } from "./utils/helperFunctions.js";
 import '../styles/ProjectDetailsPage.css';
 
 export default function ProjectDetailsPage() {
     const { projectKey: urlProjectKey } = useParams();
-    
+    const {setErrorMessage} = useOutletContext();
+
+
+
     const [projectName, setProjectName] = useState("");
     const [projectKey, setProjectKey] = useState(urlProjectKey || "");
     const [projectId, setProjectId] = useState(null);
@@ -29,18 +32,19 @@ export default function ProjectDetailsPage() {
     const [viewMode, setViewMode] = useState('kanban');
 
     const [isListModalOpen, setIsListModalOpen] = useState(false);
-    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false); // 2. NOWY STAN
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [newListName, setNewListName] = useState("");
-
     const [activeColumnDropdown, setActiveColumnDropdown] = useState(null);
     const [activeTaskDropdown, setActiveTaskDropdown] = useState(null);
+
+
 
     const [renameListModal, setRenameListModal] = useState({
         isOpen: false,
         columnId: null,
         name: ""
     });
-
+    const navigate = useNavigate();
     const deleteProject = useDeleteProject();
 
     const [modalForm, setModalForm] = useState({
@@ -57,17 +61,18 @@ export default function ProjectDetailsPage() {
         subtasks: []   
     });
 
-    useEffect(() => {
-        const savedViewMode = localStorage.getItem('project_view_mode');
-        if (savedViewMode) {
-            setViewMode(savedViewMode);
-        }
-    }, []);
+    // useEffect(() => {
+    //     const savedViewMode = localStorage.getItem('project_view_mode');
+    //     if (savedViewMode) {
+    //         setViewMode(savedViewMode);
+    //     }
+    // }, []);
 
     useEffect(() => {
         const fetchProjectAndColumns = async () => {
             try {
                 setIsLoading(true);
+                setErrorMessage("");
                 setColumns([]);
                 const token = localStorage.getItem("token");
                 const response = await fetch(`http://localhost:8000/api/projects/by-key/${urlProjectKey}`, {
@@ -75,7 +80,13 @@ export default function ProjectDetailsPage() {
                 });
 
                 if (!response.ok) {
-                    throw new Error("Failed to fetch project details");
+                    if(response.status === 404){
+                        setErrorMessage("This project doesn't exist");
+                        navigate('/dashboard', {replace: true});
+                    }else{
+                        setErrorMessage("An error occurred while loading data");
+                    }
+                    return;
                 }
 
                 const data = await response.json();
@@ -113,11 +124,24 @@ export default function ProjectDetailsPage() {
                     }));
 
                     setColumns(normalizedColumns);
+
+                    if(normalizedColumns.length === 0){
+                        localStorage.removeItem('project_view_mode');
+                        setViewMode('kanban');
+                    }else{
+                        const savedViewMode = localStorage.getItem('project_view_mode');
+                        if(savedViewMode){
+                            setViewMode(savedViewMode);
+                        }else{
+                            setViewMode('kanban')
+                        }
+                    }
                 } else {
                     throw new Error("Invalid data structure received from server");
                 }
             } catch (error) {
                 console.error("Error fetching columns:", error);
+                setErrorMessage("Failed to connect to the server")
             } finally {
                 setIsLoading(false);
             }
@@ -126,7 +150,7 @@ export default function ProjectDetailsPage() {
         if (urlProjectKey) {
             fetchProjectAndColumns();
         }
-    }, [urlProjectKey]);
+    }, [urlProjectKey, navigate, setErrorMessage]);
 
     useEffect(() => {
         const handleOutsideClick = () => {
@@ -427,7 +451,13 @@ export default function ProjectDetailsPage() {
 
             if (!response.ok) throw new Error("Failed to delete column");
 
-            setColumns(columns.filter(col => col.id !== columnId));
+            const remainingColumns = columns.filter(col => col.id !== columnId);
+            setColumns(remainingColumns);
+
+            if(remainingColumns.length === 0){
+                localStorage.removeItem('project_view_mode');
+                setViewMode('kanban');
+            }
         } catch (error) {
             console.error("Error deleting list:", error);
         }
@@ -457,7 +487,6 @@ export default function ProjectDetailsPage() {
     };
 
 const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTaskId = null) => {
-    // 1. Sprawdzamy tymczasowe ID (zanim zadanie zostanie zapisane w DB)
     if (typeof taskId === 'string' && taskId.startsWith('temp-')) {
         alert("Zapisz najpierw zadanie, aby móc zmieniać status jego podzadań!");
         return;
@@ -466,7 +495,6 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
     const nextDoneState = !isCurrentlyDone;
     const token = localStorage.getItem("token");
 
-    // 2. Dynamicznie wybieramy endpoint: dla subtaska lub głównego zadania
     const endpointUrl = parentTaskId 
         ? `http://localhost:8000/api/subtasks/${taskId}/toggle-complete`
         : `http://localhost:8000/api/tasks/${taskId}/toggle-complete`;
@@ -488,17 +516,17 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
 
         const data = await response.json();
 
-        // 3. Aktualizujemy stan kolumn i zadań
         setColumns(prevColumns => (prevColumns || []).map(col => {
             if (col.id !== columnId) return col;
 
             return {
                 ...col,
                 tasks: (col.tasks || []).map(t => {
-                    // PRZYPADEK A: Przełączono SUBTASK (posiada parentTaskId)
                     if (parentTaskId && t.id === parentTaskId) {
                         const updatedSubtasks = (t.subtasks || []).map(st => {
-                            if (st.id === taskId) {
+                            const currentSubId = st.db_id || st.id;
+                            
+                            if (String(currentSubId) === String(taskId)) {
                                 return {
                                     ...st,
                                     is_done: nextDoneState,
@@ -509,7 +537,6 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
                             return st;
                         });
 
-                        // Przeliczamy postęp rodzica na froncie
                         const completedCount = updatedSubtasks.filter(st => st.is_done || st.progress_prec === 100).length;
                         const calculatedProgress = updatedSubtasks.length > 0 
                             ? Math.round((completedCount / updatedSubtasks.length) * 100) 
@@ -523,7 +550,6 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
                         };
                     }
 
-                    // PRZYPADEK B: Przełączono GŁÓWNE ZADANIE
                     if (!parentTaskId && t.id === taskId) {
                         const serverSubtasks = data.subtasks || [];
                         
@@ -555,7 +581,7 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
 
     } catch (error) {
         console.error("Error toggling completion:", error);
-        alert(`Błąd połączenia z serwerem: ${error.message}`);
+        alert(`Problem with server connection: ${error.message}`);
     }
 };
 

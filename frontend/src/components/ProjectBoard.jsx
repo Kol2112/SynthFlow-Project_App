@@ -55,11 +55,8 @@ export default function ProjectBoard({ projectId, projectKey, projectTitle, memb
                     </button>
                     {isOpen && (
                         <ul className="dropdownElementsContainer">
-                            <li key={1}><Link to={`/dashboard/project/${projectKey}`} className="dropdown-link">Details</Link></li>
-                            
-                            {/* 3. Wywołujemy przekazaną z zewnątrz funkcję onEdit */}
+                            <li key={1}><Link to={`/project/${projectKey}`} className="dropdown-link">Details</Link></li>
                             <li key={2} onClick={() => { setIsOpen(false); if (onEdit) onEdit(projectId); }}>Edit</li>
-                            
                             <li key={3} onClick={handleDelete}><Link className="warning">Delete</Link></li>
                         </ul>
                     )}

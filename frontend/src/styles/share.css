@@ -52,3 +52,45 @@ body{
     }
 }
 
+
+.wrongDataContainer {
+    display: flex;
+    justify-content: center;
+    position: absolute;
+    top: 1rem;
+    border-radius: 10px;
+    padding: 1rem 4rem;
+    z-index: 9999;
+
+    opacity: 0;
+    transform: translateY(-20px);
+    animation: slideInFromTop 0.3s ease-out forwards;
+
+    &.error, &:not(.success) {
+        background: rgb(218, 141, 141);
+        .wrongDataEl {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: large;
+            color: rgb(163, 13, 13);
+        }
+    }
+
+    &.success {
+        background: rgba(63, 185, 80, 0.2);
+        border: 1px solid #3fb950;
+        .wrongDataEl {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: large;
+            color: #3fb950;
+        }
+    }
+
+    @media(max-width: 575px) {
+        width: 90%;
+        padding: 1rem 0.5rem;
+        margin: 0 1rem;
+        .wrongDataEl {
+            font-size: small;
+        }
+    }
+}

@@ -181,3 +181,12 @@
     outline: none;
 }
 
+/* Dopisek do Modal.css */
+.controlButton .dangerButton {
+    background: #da3633 !important;
+    color: #ffffff !important;
+}
+
+.controlButton .dangerButton:hover {
+    background: #b82a28 !important;
+}

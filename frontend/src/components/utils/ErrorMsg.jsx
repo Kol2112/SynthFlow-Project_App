@@ -1,19 +1,24 @@
 import { useEffect, useState } from 'react';
-export default function ErrorMsg({errorMsg}){
-    const [wrongData, setWrongData] = useState(errorMsg)
-    useEffect(()=>{
-            let timer;
-            if(wrongData){
-                timer = setTimeout(()=>{
-                    setWrongData(false);
-                },2000)
-            }
+export default function ErrorMsg({message, type='error', errorMsg}){
+    const displayMessage = (message && typeof message === 'object') ? message.text : (message || errorMsg);
+    const messageType = typeof message === 'object' ? (message?.type || 'error') : type;
+    const [visibleMessage, setVisibleMessage] = useState(displayMessage);
     
-            return ()=>clearTimeout(timer);
-        },[wrongData])
+    useEffect(()=>{
+        setVisibleMessage(displayMessage);
 
+        if(displayMessage){
+            const timer = setTimeout(()=>{
+                setVisibleMessage(null);
+            },3000);
+
+            return () => clearTimeout(timer);
+        }
+    }, [displayMessage]);
+
+    if(!visibleMessage) return null;
     return(
-        <div className='wrongDataContainer'><p className='wrongDataEl'>{errorMsg}</p></div>
-    )
+        <div className={`wrongDataContainer ${messageType}`}><p className='wrongDataEl'>{visibleMessage}</p></div>
+    );
 
 }

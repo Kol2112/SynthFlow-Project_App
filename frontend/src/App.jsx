@@ -5,6 +5,9 @@ import RecoveryPage from "./components/RecoveryPage.jsx"
 import CreateAccount from "./components/CreateAccount.jsx"
 import ActivationPage from './components/ActivationPage';
 import ProjectDetailsPage from "./components/ProjectDetailsPage.jsx";
+import Account from "./components/Account.jsx"
+import Settings from "./components/Settings.jsx"; // <--- 1. IMPORT
+import ConfirmChange from "./components/utils/ConfirmChange.jsx"
 import { Route, Routes, Navigate } from "react-router-dom"
 
 function App() {
@@ -30,29 +33,28 @@ function App() {
                 <PublicOnlyRoute>
                     <Login />
                 </PublicOnlyRoute>
-                } />
-            <Route path='/register' element={
-                <PublicOnlyRoute>
-                    <CreateAccount />
-                </PublicOnlyRoute>
-                } />
-            <Route path='/recovery' element={
-                <PublicOnlyRoute>
-                    <RecoveryPage />
-                </PublicOnlyRoute>
-                } />
-            <Route path="/activate" element={
-                <PublicOnlyRoute>
-                    <ActivationPage />
-                </PublicOnlyRoute>
-                } />
+            } />
             
-            <Route path="/dashboard" element={
+            <Route path='/login' element={
+                <PublicOnlyRoute>
+                    <Login />
+                </PublicOnlyRoute>
+            } />
+
+            <Route path='/register' element={<PublicOnlyRoute><CreateAccount /></PublicOnlyRoute>} />
+            <Route path='/recovery' element={<PublicOnlyRoute><RecoveryPage /></PublicOnlyRoute>} />
+            <Route path="/activate" element={<PublicOnlyRoute><ActivationPage /></PublicOnlyRoute>} />
+            
+            <Route path="/confirm-change" element={<ConfirmChange />} />
+            
+            <Route element={
                 <ProtectedRoute>
                     <MainPage />
                 </ProtectedRoute>
             }>
-                <Route index element={<DashboardHome />} />
+                <Route path="/dashboard" element={<DashboardHome />} />
+                <Route path="/account" element={<Account />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="project/:projectKey" element={<ProjectDetailsPage />} />
             </Route>
 

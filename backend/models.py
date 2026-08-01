@@ -46,6 +46,7 @@ class User(Base):
     name = Column(String, index=True, nullable=True)
     surname = Column(String, index=True, nullable=True)
     birth_date = Column(DateTime, nullable=True)
+    avatar_url = Column(Text, nullable=True)
 
     is_active = Column(Boolean, default=False, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
@@ -146,3 +147,13 @@ class ActivityLog(Base):
 
     project = relationship("Project", back_populates="logs")
     user = relationship("User")
+
+class PendingChange(Base):
+    __tablename__ = "pending_changes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String, unique=True, index=True, nullable=False)
+    type = Column(String, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    data_json = Column(Text, nullable=False)
+    expires_at = Column(DateTime, nullable=False)

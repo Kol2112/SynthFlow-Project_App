@@ -3,15 +3,21 @@ import Sidebar from './Sidebar.jsx';
 import Modal from './Modal.jsx';
 import '../styles/MainPage.css';
 import CreateProject from './CreateProject.jsx';
+import ErrorMsg from './utils/ErrorMsg.jsx';
 import FABADDButton from './utils/FABAddButton.jsx';
 import { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import useAutoRefreshAuth from './utils/useAutoRefreshAuth.js';
 
 export default function MainPage(){
     const [isOpen, setIsOpen] = useState(false);
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [errorMessage, setErrorMessage] = useState("");
+
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const [modalForm, setModalForm] = useState({
         isEdit: false,
@@ -23,11 +29,14 @@ export default function MainPage(){
         priority: 'Low'
     });
 
-    const location = useLocation();
-
+    useAutoRefreshAuth();
     useEffect(() => {
         const fetchProjects = async () => {
             const token = localStorage.getItem('token');
+            if(!token){
+                navigate('/', {replace: true});
+                return;
+            }
             try {
                 const response = await axios.get('http://localhost:8000/api/projects', {
                     headers: { Authorization: `Bearer ${token}` }
@@ -35,12 +44,18 @@ export default function MainPage(){
                 setProjects(response.data);
             } catch (err) {
                 console.error('Error occurred downloading projects:', err);
+                if(err.response && (err.response.status === 401 || err.response.status === 403 )){
+                    localStorage.removeItem('token');
+                    navigate('/', {replace: true});
+                }else{
+                    setErrorMessage("Failed to load projects")
+                }
             } finally {
                 setLoading(false);
             }
         };
         fetchProjects();
-    }, [location.pathname]);
+    }, [location.pathname, navigate]);
 
     const handleOpenCreateModal = () => {
         setModalForm({
@@ -135,7 +150,8 @@ export default function MainPage(){
 
     return (
         <>
-            <Navbar />   
+            <Navbar />
+            {errorMessage && <ErrorMsg errorMsg={errorMessage} />}
             <main>
                 <Sidebar isOpen={handleOpenCreateModal} />
 
@@ -156,7 +172,7 @@ export default function MainPage(){
                 </Modal>
 
                 <div className="dynamicPageContent">
-                    <Outlet context={{ projects, setProjects, onEditProject: handleOpenEditModal }} />
+                    <Outlet context={{ projects, setProjects, onEditProject: handleOpenEditModal, setErrorMessage }} />
                 </div>
 
                 <FABADDButton isOpen={handleOpenCreateModal} />

@@ -17,18 +17,31 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class UserEmailUpdate(BaseModel):
+    new_email: EmailStr
+    password: str = Field(..., description="Current password required to confirm the change")
+
+class UserPasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length= 8, description="The new password must be at least 8 characters long")
+
 # Schemat dla frontendu
 class UserResponse(BaseModel):
     id: int
     email: EmailStr
     name: Optional[str]
     surname: Optional[str]
+    avatar_url: Optional[str] = None
     is_active: bool
     is_verified: bool
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+class AvatarUpdate(BaseModel):
+    avatar_url: str
+
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -126,3 +139,38 @@ class TaskResponse(BaseModel):
 
 class TaskProgressToggle(BaseModel):
     is_done: bool
+
+
+class ProjectJoinRequest(BaseModel):
+    project_key: str = Field(..., min_length=1, description="Project key, which for user want to join")
+
+class JoinRequestResponse(BaseModel):
+    message: str
+    expires_at: datetime
+
+
+class ProjectMemberUserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    name: Optional[str] = None
+    surname: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class ProjectResponse(BaseModel):
+    id: int
+    name: str
+    project_key: str
+    desc: Optional[str] = None
+    deadline: Optional[date] = None
+    priority: str
+    progress_prec: int
+    tags: Optional[str] = None
+    github_repo: Optional[str] = None
+    owner_id: int
+    members: List[ProjectMemberUserResponse] = [] # <--- NOWOŚĆ: lista członków projektu
+
+    class Config:
+        from_attributes = True

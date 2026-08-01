@@ -33,11 +33,28 @@ nav {
         position: relative;
         cursor: pointer;
         margin-right: 5%;
+        display: flex;
+        align-items: center;
 
         @media (max-width: 768px) {
             margin-right: 1rem;
         }
+        .navElIcon {
+            cursor: pointer;
+        }
 
+        .navAvatar {
+            width: 2.8rem;
+            height: 2.8rem;
+            border-radius: 50%;
+            border: 1px solid #8B949E;
+            object-fit: cover;
+            transition: border-color 0.2s ease;
+
+            &:hover {
+                border-color: #C9D1D9;
+            }
+        }
         .dropdownElementsContainer {
             display: flex;
             flex-direction: column;
@@ -53,14 +70,22 @@ nav {
             box-shadow: 0 8px 24px rgba(0,0,0,0.5);
             list-style: none;
             z-index: 1000;
-        }
+            li {
+                display: block;
+                padding: 0.8rem 1rem;
+                color: #C9D1D9 !important;
+                font-family: 'Roboto', sans-serif;
+                text-decoration: none;
+                cursor: pointer;
 
+                &:hover {
+                    background-color: #21262D;
+                }
+        }
+/* 
         .dropdownElementsContainer li {
-            display: block;
-            padding: 0.8rem 1rem;
-            color: #C9D1D9 !important;
-            font-family: 'Roboto', sans-serif;
-            text-decoration: none;
+
+        } */
         }
     }
 }
