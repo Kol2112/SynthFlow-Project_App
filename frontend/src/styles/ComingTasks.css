@@ -1,47 +1,143 @@
-#taskPanelContainer{
-    display: grid;
-    grid-template-rows: repeat(7,1fr);
-    gap: 1rem;
-    margin: 0 2rem;
-    #taskPanelHeader{
-        display: inherit;
-        justify-items: center;
-        align-items: center;
-        grid-template-columns: repeat(7,1fr);
-        color:#8B949E;
-        font-family: 'JetBrains mono', monospace;
-    }
+#taskPanelContainer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: 1rem;
+    box-sizing: border-box;
 
-    .taskElement{
-        display: inherit;
-        grid-template-columns: repeat(7,1fr);
-        background: #161B22;
-        padding: 1rem 0;
-        justify-items: center;
+    #taskPanelHeader {
+        display: grid;
+        grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 1.2fr 1fr;
         align-items: center;
-        font-family: 'Roboto', sans-serif;
-        box-shadow: 10px 8px 5px #000000;
+        padding: 0.8rem 1.5rem;
+        color: var(--text-secondary);
+        font-family: var(--font-main);
+        font-size: 0.85rem;
+        text-align: center;
 
-        button{
-            background: rgba(191, 145, 255, 0.5);
-            padding: 0.5rem;
-            
-            border: none;
-            border-radius: 36px;
-            
-            color: #E6EDF3;
-            font-family: 'JetBrains Mono', monospace;
-            box-shadow: 10px 8px 5px #000000;
+        span:nth-child(1) {
+            text-align: left;
         }
+    }
 
+    .taskElementsList {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        background-color: #0D1117;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
 
+        .taskElement {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 1.2fr 1fr;
+            align-items: center;
+            background: #161B22;
+            padding: 0.9rem 1.5rem;
+            font-family: var(--font-secondary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            text-align: center;
+            transition: background-color 0.2s ease;
+
+            &:hover {
+                background: #1C2129;
+            }
+
+            .taskNameColumn {
+                text-align: left;
+                margin: 0;
+                font-weight: 500;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .projectNameColumn {
+                margin: 0;
+                color: var(--text-primary);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .assigneeColumn {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+
+                .assigneeAvatar {
+                    width: 28px;
+                    height: 28px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #e63946, #d62828);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #ffffff;
+                    font-size: 0.7rem;
+                    font-family: var(--font-main);
+                    font-weight: 600;
+                    overflow: hidden;
+                    border: 1px solid #30363D;
+
+                    img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                    }
+                }
+            }
+
+            .completeColumn {
+                font-family: var(--font-main);
+                font-size: 0.85rem;
+                color: var(--text-primary);
+            }
+
+            .priorityColumn {
+                display: flex;
+                justify-content: center;
+            }
+
+            .deadlineColumn {
+                margin: 0;
+                font-family: var(--font-main);
+                font-size: 0.85rem;
+                color: #E3B341;
+            }
+
+            .actionColumn {
+                display: flex;
+                justify-content: center;
+
+                .detailsBtn {
+                    background: linear-gradient(135deg, #7C5CFC, #6248A8);
+                    padding: 0.35rem 0.9rem;
+                    border: none;
+                    border-radius: 20px;
+                    color: var(--text-primary);
+                    font-family: var(--font-main);
+                    font-size: 0.78rem;
+                    cursor: pointer;
+                    transition: transform 0.2s ease, opacity 0.2s ease;
+                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+
+                    &:hover {
+                        transform: translateY(-1px);
+                        opacity: 0.9;
+                    }
+                }
+            }
+        }
     }
-    & > *:nth-child(2){
-        border-radius: 30px 30px 0 0;
-    }
-    & > *:last-child{
-        border-radius: 0 0 30px 30px;
-    }
+
 }
-
-
+.noUpcomingTasks {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-family: var(--font-main);
+    font-size: 0.9rem;
+}

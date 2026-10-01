@@ -17,10 +17,8 @@ export default function Account(){
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     
-    // Główny stan komunikatów
     const [notification, setNotification] = useState(null);
 
-    // Stan dla uniwersalnego ConfirmationModal
     const [confirmModal, setConfirmModal] = useState({
         isOpen: false,
         title: "",
@@ -103,7 +101,6 @@ export default function Account(){
         reader.readAsDataURL(file);
     };
 
-    // --- USUWANIE AVATARA ---
     const executeDeleteAvatar = async () => {
         closeModal();
         setIsLoading(true);
@@ -136,7 +133,6 @@ export default function Account(){
         });
     };
 
-    // --- ZMIANA EMAILA ---
     const handleEmailChange = async (e) => {
         e.preventDefault();
 
@@ -164,7 +160,6 @@ export default function Account(){
         }
     };
 
-    // --- ZMIANA HASŁA ---
     const handlePasswordChange = async (e) => {
         e.preventDefault();
 
@@ -198,7 +193,6 @@ export default function Account(){
         }
     };
 
-    // --- USUWANIE KONTA ---
     const executeDeleteAccount = async () => {
         closeModal();
         setIsLoading(true);
@@ -242,10 +236,8 @@ export default function Account(){
 
     return(
         <div className="accountContainer">
-            {/* Komponent powiadomień */}
             <ErrorMsg message={notification} />
 
-            {/* Uniwersalny Modal Potwierdzający */}
             <ConfirmationModal
                 isOpen={confirmModal.isOpen}
                 onClose={closeModal}
@@ -270,7 +262,7 @@ export default function Account(){
                     </div>
                     
                     <div className="avatarActionControls">
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div className="avatarButtonsGroup">
                             <button type="button" className="btnChangeAvatar" onClick={triggerFileInput} disabled={isLoading}>
                                 {isLoading ? "Uploading..." : "Change Avatar"}
                             </button>
@@ -290,7 +282,7 @@ export default function Account(){
 
             <section className="accountSection">
                 <h2 className="sectionTitle">Change Email</h2>
-                <p style={{ color: '#8b949e', marginBottom: '15px' }}>Current Email: <strong>{currentEmail}</strong></p>
+                <p className="sectionText">Current Email: <strong>{currentEmail}</strong></p>
                 
                 <form onSubmit={handleEmailChange} className="accountForm">
                     <div className="formGroup">
@@ -333,34 +325,20 @@ export default function Account(){
                     </div>
                     <div className="formGroup">
                         <label>New Password</label>
-                        <input 
-                            type="password" 
-                            value={newPassword} 
-                            onChange={(e) => setNewPassword(e.target.value)} 
-                            required 
-                            placeholder="Minimum 8 characters"
-                        />
+                        <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required placeholder="Minimum 8 characters"/>
                     </div>
                     <div className="formGroup">
                         <label>Confirm New Password</label>
-                        <input 
-                            type="password" 
-                            value={confirmPassword} 
-                            onChange={(e) => setConfirmPassword(e.target.value)} 
-                            required 
-                            placeholder="Repeat new password"
-                        />
+                        <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required placeholder="Repeat new password"/>
                     </div>
 
                     <button type="submit" className="btnSubmit">Update Password</button>
                 </form>
             </section>
 
-            <section className="accountSection" style={{ borderBottom: 'none' }}>
-                <h2 className="sectionTitle" style={{ color: '#f85149' }}>Danger Zone</h2>
-                <p style={{ color: '#8b949e', marginBottom: '15px' }}>
-                    Once you delete your account, there is no going back. Please be certain.
-                </p>
+            <section className="accountSection">
+                <h2 className="sectionTitle dangerTitle">Danger Zone</h2>
+                <p className="sectionText">Once you delete your account, there is no going back. Please be certain.</p>
                 <button 
                     type="button" 
                     className="btnDeleteAvatar" 

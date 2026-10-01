@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import '../../styles/share.css';
 
 export default function ConfirmChange() {
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
     const navigate = useNavigate();
     
-    // Guard zapobiegający podwójnemu wywołaniu w React 18 Strict Mode
     const hasCalledApi = useRef(false);
 
     useEffect(() => {
@@ -26,20 +26,17 @@ export default function ConfirmChange() {
                 const data = await response.json();
 
                 if (response.ok) {
-                    // 1. Czyszczenie sesji - wylogowanie użytkownika
                     localStorage.removeItem('token');
 
-                    // 2. Przekierowanie do panelu logowania z dynamicznym komunikatem z serwera
                     navigate('/login', { 
                         state: { 
                             notification: { 
-                                text: data.message || "Zmiana została pomyślnie confirmed! Zaloguj się ponownie.", 
+                                text: data.message || "Zmiana została pomyślnie potwierdzona! Zaloguj się ponownie.", 
                                 type: "success" 
                             } 
                         } 
                     });
                 } else {
-                    // Przekierowanie z błędem w przypadku unieważnionego/przedawnionego tokenu
                     navigate('/login', { 
                         state: { 
                             notification: { 
@@ -63,7 +60,7 @@ export default function ConfirmChange() {
     }, [token, navigate]);
 
     return (
-        <div style={{ padding: '20px', color: '#fff', textAlign: 'center' }}>
+        <div className="confirmChangeContainer">
             <h2>Trwa potwierdzanie zmian...</h2>
         </div>
     );

@@ -2,20 +2,33 @@ from fastapi import FastAPI, BackgroundTasks, Depends, HTTPException, status, Re
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 import os, re, json
 from dotenv import load_dotenv
 from pathlib import Path
 import uuid
 import models, schemas
+from apscheduler.schedulers.background import BackgroundScheduler
+from contextlib import asynccontextmanager
+from services.scheduler import check_task_deadlines
+from services import notification as notif_service
 
 from database import get_db
 from auth import get_password_hash, verify_password, create_access_token, get_current_user, refresh_access_token
 
-app = FastAPI()
+scheduler = BackgroundScheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler.add_job(check_task_deadlines, 'interval', hours=1)
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+app = FastAPI(lifespan=lifespan)
 pending_changes = {}
 origins = [
     "http://localhost:5173",
@@ -47,17 +60,18 @@ mail_config = ConnectionConfig(
     VALIDATE_CERTS=True
 )
 
+
 def send_activation_email_background(email: str, token: str, background_tasks: BackgroundTasks):
-    activation_link = f"http://localhost:5173/activate?token={token}"
+    activation_link = f"http://localhost:8000/api/auth/activate?token={token}"
     html_content = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
-            <h2 style="color: #24292e;">Witaj w SynthFlow!</h2>
-            <p>Dziękujemy za rejestrację. Twoje konto zostało pomyślnie utworzone.</p>
-            <p>Aby móc się zalogować, musisz najpierw aktywować swoje konto, klikając w poniższy przycisk:</p>
+            <h2 style="color: #24292e;">Welcome to SynthFlow!</h2>
+            <p>Thank you for registering. Your account has been successfully created.</p>
+            <p>To log in, please activate your account first by clicking the button below:</p>
             <div style="margin: 25px 0;">
-                <a href="{activation_link}" target="_blank" style="padding: 12px 24px; background-color: #0366d6; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Aktywuj konto</a>
+                <a href="{activation_link}" target="_blank" style="padding: 12px 24px; background-color: #0366d6; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Activate Account</a>
             </div>
-            <p style="color: #586069; font-size: 0.9rem;">Jeśli nie rejestrowałeś się w naszym serwisie, zignoruj tę wiadomość.</p>
+            <p style="color: #586069; font-size: 0.9rem;">If you did not register for our service, please ignore this message.</p>
         </div>
     """
     message = MessageSchema(
@@ -69,23 +83,53 @@ def send_activation_email_background(email: str, token: str, background_tasks: B
     fm = FastMail(mail_config)
     background_tasks.add_task(fm.send_message, message)
 
-def send_confirmation_email_background(email: str, token: str, action_type: str, background_tasks: BackgroundTasks):
-    confirm_link = f"http://localhost:5173/confirm-change?token={token}"
-    action_text = "zmianę adresu e-mail" if action_type == "email" else "zmianę hasła"
+def send_project_invitation_email_background(
+    invited_email: str, 
+    inviter_name: str, 
+    project_name: str, 
+    token: str, 
+    background_tasks: BackgroundTasks
+):
+    accept_link = f"http://localhost:8000/api/projects/confirm-invitation?token={token}&action=accept"
+    reject_link = f"http://localhost:8000/api/projects/confirm-invitation?token={token}&action=reject"
     
     html_content = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
-            <h2 style="color: #24292e;">SynthFlow - Potwierdzenie zmiany</h2>
-            <p>Otrzymaliśmy prośbę o <strong>{action_text}</strong> w Twoim koncie.</p>
-            <p>Kliknij poniższy przycisk, aby zatwierdzić tę zmianę. Link jest ważny przez <strong>10 minut</strong>:</p>
-            <div style="margin: 25px 0;">
-                <a href="{confirm_link}" target="_blank" style="padding: 12px 24px; background-color: #2ea44f; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Potwierdź zmianę</a>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 8px;">
+            <h2 style="color: #24292e;">SynthFlow - Project Invitation</h2>
+            <p>User <strong>{inviter_name}</strong> invited you to join the project: <strong>{project_name}</strong>.</p>
+            <p>Choose an option below to respond to the invitation (link valid for 7 days):</p>
+            <div style="margin: 30px 0;">
+                <a href="{accept_link}" target="_blank" style="padding: 12px 20px; background-color: #2ea44f; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: 10px;">Join Project</a>
+                <a href="{reject_link}" target="_blank" style="padding: 12px 20px; background-color: #cb2431; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Decline Invitation</a>
             </div>
-            <p style="color: #8b949e; font-size: 0.85rem;">Jeśli to nie Ty zgłaszałeś chęć zmiany, zignoruj tę wiadomość – żadne modyfikacje nie zostaną wprowadzone.</p>
         </div>
     """
     message = MessageSchema(
-        subject=f"SynthFlow - Potwierdź {action_text}",
+        subject=f"SynthFlow - Invitation to project: {project_name}",
+        recipients=[invited_email],
+        body=html_content,
+        subtype=MessageType.html
+    )
+    fm = FastMail(mail_config)
+    background_tasks.add_task(fm.send_message, message)
+
+def send_confirmation_email_background(email: str, token: str, action_type: str, background_tasks: BackgroundTasks):
+    confirm_link = f"http://localhost:5173/confirm-change?token={token}"
+    action_text = "email address change" if action_type == "email" else "password change"
+    
+    html_content = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
+            <h2 style="color: #24292e;">SynthFlow - Confirm Change</h2>
+            <p>We received a request for an <strong>{action_text}</strong> on your account.</p>
+            <p>Click the button below to approve this change. This link is valid for <strong>10 minutes</strong>:</p>
+            <div style="margin: 25px 0;">
+                <a href="{confirm_link}" target="_blank" style="padding: 12px 24px; background-color: #2ea44f; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Confirm Change</a>
+            </div>
+            <p style="color: #8b949e; font-size: 0.85rem;">If you did not request this change, please ignore this email - no modifications will be applied.</p>
+        </div>
+    """
+    message = MessageSchema(
+        subject=f"SynthFlow - Confirm {action_text}",
         recipients=[email],
         body=html_content,
         subtype=MessageType.html
@@ -94,13 +138,13 @@ def send_confirmation_email_background(email: str, token: str, action_type: str,
     background_tasks.add_task(fm.send_message, message)
 
 def send_security_notice_email_background(email: str, action_type: str, background_tasks: BackgroundTasks):
-    action_text = "zmianie adresu e-mail" if action_type == "email" else "zmianie hasła"
+    action_text = "email address change" if action_type == "email" else "password change"
     html_content = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
-            <h2 style="color: #24292e;">SynthFlow - Powiadomienie o bezpieczeństwie</h2>
-            <p>Informujemy, że w Twoim koncie została wykryta aktywność polegająca na <strong>{action_text}</strong>.</p>
-            <p style="color: #d73a49;">Jeśli to NIE Ty dokonałeś tej zmiany, skontaktuj się natychmiast z administratorem systemu!</p>
-            <p style="color: #586069; font-size: 0.9rem; margin-top: 20px;">To jest wiadomość wygenerowana automatycznie, nie odpowiadaj na nią.</p>
+            <h2 style="color: #24292e;">SynthFlow - Security Notice</h2>
+            <p>We detected activity on your account involving an <strong>{action_text}</strong>.</p>
+            <p style="color: #d73a49;">If you did NOT perform this change, please contact a system administrator immediately!</p>
+            <p style="color: #586069; font-size: 0.9rem; margin-top: 20px;">This is an automatically generated message, please do not reply.</p>
         </div>
     """
     message = MessageSchema(subject=f"Synthflow - Security Alert: {action_text.capitalize()}", recipients=[email], body=html_content, subtype=MessageType.html)
@@ -111,13 +155,13 @@ def send_reset_email_background(email: str, token: str, background_tasks: Backgr
     reset_link = f"http://localhost:5173/recovery?token={token}"
     html_content = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
-            <h2 style="color: #24292e;">SynthFlow - Resetowanie hasła</h2>
-            <p>Otrzymaliśmy prośbę o zresetowanie hasła do Twojego konta.</p>
-            <p>Kliknij poniższy przycisk, aby ustalić nowe hasło:</p>
+            <h2 style="color: #24292e;">SynthFlow - Password Reset</h2>
+            <p>We received a request to reset your account password.</p>
+            <p>Click the button below to set a new password:</p>
             <div style="margin: 25px 0;">
-                <a href="{reset_link}" target="_blank" style="padding: 12px 24px; background-color: #0366d6; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Resetuj hasło</a>
+                <a href="{reset_link}" target="_blank" style="padding: 12px 24px; background-color: #0366d6; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Reset Password</a>
             </div>
-            <p style="color: #586069; font-size: 0.9rem;">Jeśli to nie Ty prosiłeś o zmianę hasła, zignoruj tę wiadomość.</p>
+            <p style="color: #586069; font-size: 0.9rem;">If you did not request a password change, please ignore this email.</p>
         </div>
     """
     message = MessageSchema(
@@ -135,18 +179,18 @@ def send_join_request_email_background(owner_email: str, requester_name: str, re
     
     html_content = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 8px;">
-            <h2 style="color: #24292e;">SynthFlow - Prośba o dostęp do projektu</h2>
-            <p>Użytkownik <strong>{requester_name}</strong> ({requester_email}) poprosił o dołączenie do Twojego projektu: <strong>{project_name}</strong>.</p>
-            <p style="color: #d73a49; font-weight: bold;">Ta prośba wygaśnie za 24 godziny.</p>
+            <h2 style="color: #24292e;">SynthFlow - Project Access Request</h2>
+            <p>User <strong>{requester_name}</strong> ({requester_email}) requested to join your project: <strong>{project_name}</strong>.</p>
+            <p style="color: #d73a49; font-weight: bold;">This request will expire in 24 hours.</p>
             <div style="margin: 30px 0; display: flex; gap: 15px;">
-                <a href="{accept_link}" target="_blank" style="padding: 12px 20px; background-color: #2ea44f; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: 10px;">Zaakceptuj</a>
-                <a href="{reject_link}" target="_blank" style="padding: 12px 20px; background-color: #cb2431; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Odrzuć</a>
+                <a href="{accept_link}" target="_blank" style="padding: 12px 20px; background-color: #2ea44f; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: 10px;">Accept</a>
+                <a href="{reject_link}" target="_blank" style="padding: 12px 20px; background-color: #cb2431; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Decline</a>
             </div>
-            <p style="color: #8b949e; font-size: 0.85rem;">Jeśli nie podejmiesz żadnej akcji, wniosek automatycznie przedawni się po 24 godzinach.</p>
+            <p style="color: #8b949e; font-size: 0.85rem;">If no action is taken, the request will expire automatically after 24 hours.</p>
         </div>
     """
     message = MessageSchema(
-        subject=f"SynthFlow - Prośba o dostęp do projektu: {project_name}",
+        subject=f"SynthFlow - Access request for project: {project_name}",
         recipients=[owner_email],
         body=html_content,
         subtype=MessageType.html
@@ -184,11 +228,39 @@ def update_project_progress(project_id: int, db: Session):
         project.progress_prec = int(total_progress / len(main_tasks))
     db.commit()
 
+
 @app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
 def register_user(user_data: schemas.UserRegister, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):    
+    if user_data.birth_date:
+        today = datetime.utcnow().date()
+        age = today.year - user_data.birth_date.year - ((today.month, today.day) < (user_data.birth_date.month, user_data.birth_date.day))
+        if age < 13:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail="You must be at least 13 years old to register"
+            )
+
+    password = user_data.password
+    if len(password) < 12:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Password must be at least 12 characters long"
+        )
+    if not re.search(r'[A-Z]', password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Password must contain at least one uppercase letter"
+        )
+    if not re.search(r'[^a-zA-Z0-9\s]', password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Password must contain at least one special character"
+        )
+
     existing_user = get_user_by_email(db, user_data.email)
     if existing_user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User with this email already exist.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User with this email already exists")
+        
     secured_passwd = get_password_hash(user_data.password)
     new_user = models.User(
         email=user_data.email,
@@ -205,7 +277,7 @@ def register_user(user_data: schemas.UserRegister, background_tasks: BackgroundT
     token = str(uuid.uuid4())
     activation_tokens[token] = user_data.email
     send_activation_email_background(user_data.email, token, background_tasks)
-    return {"message": "Account succesful create", "user_id": new_user.id}
+    return {"message": "Account created successfully.", "user_id": new_user.id}
 
 @app.post("/api/auth/login", response_model=schemas.TokenResponse)
 def login_usr(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
@@ -213,7 +285,7 @@ def login_usr(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
     if not user or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password!")
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Your account is not activate yet")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Your account is not activated yet")
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -223,49 +295,65 @@ def refresh_token(current_user: models.User = Depends(get_current_user)):
     return {"access_token": new_token, "token_type": "bearer"}
 
 @app.post("/api/auth/forgot-password")
-def forgot_password(login_data: schemas.UserLogin, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    user = get_user_by_email(db, login_data.email)
+def forgot_password(data: schemas.ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    user = get_user_by_email(db, data.email)
     if not user:
-        return {"message": "If the account exists, a reset link has been sent."}
+        return {"message": "If the account exists, a reset link has been sent"}
     token = str(uuid.uuid4())
-    reset_tokens[token] = login_data.email
-    send_reset_email_background(login_data.email, token, background_tasks)
-    return {"message": "Reset link sent successfully."}
+    reset_tokens[token] = data.email
+    send_reset_email_background(data.email, token, background_tasks)
+    return {"message": "Reset link sent successfully"}
 
 @app.post("/api/auth/reset-password")
-def reset_password(token: str, new_password: str, db: Session = Depends(get_db)):
-    if token not in reset_tokens:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token.")
-    user = get_user_by_email(db, reset_tokens[token])
+def reset_password(data: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    password = data.new_password
+    if not re.search(r'[A-Z]', password) or not re.search(r'[^a-zA-Z0-9\s]', password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must contain at least one uppercase letter and one special character")
+    if data.token not in reset_tokens:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+    user = get_user_by_email(db, reset_tokens[data.token])
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
-    user.hashed_password = get_password_hash(new_password)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.hashed_password = get_password_hash(data.new_password)
     db.commit()
-    del reset_tokens[token]
+    del reset_tokens[data.token]
     return {"message": "Password updated successfully"}
 
-@app.post("/api/auth/activate")
+@app.get("/api/auth/activate")
 def activate_account(token: str, db: Session = Depends(get_db)):
     if token not in activation_tokens:
-        raise HTTPException(status_code=400, detail="Inavlid or expired activation token.")
+        return RedirectResponse(
+            url="http://localhost:5173/login?error=Invalid+or+expired+activation+token."
+        )
+
     user = db.query(models.User).filter(models.User.email == activation_tokens[token]).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
+        return RedirectResponse(
+            url="http://localhost:5173/login?error=User+not+found."
+        )
+
     user.is_active = True
     db.commit()
     del activation_tokens[token]
-    return {"message": "Account activated successfully! You can now log in."}
+
+    return RedirectResponse(
+        url="http://localhost:5173/login?msg=Account+activated+successfully!+You+can+now+log+in."
+    )
+
+# --- PROJECTS & COLUMNS ENDPOINTS ---
 
 @app.post("/api/projects", response_model=schemas.ProjectResponse, status_code=status.HTTP_201_CREATED)
-def create_new_project(
-    project_data: schemas.ProjectCreate, 
-    db: Session = Depends(get_db), 
-    current_user: models.User = Depends(get_current_user)
+def create_new_project(project_data: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
 ):
-    existing_key = db.query(models.Project).filter(models.Project.project_key == project_data.project_key).first()
+    existing_key = db.query(models.Project).filter(
+        models.Project.project_key == project_data.project_key
+    ).first()
+    
     if existing_key:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project with this key already exists.")
-
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=f"Project key '{project_data.project_key}' is already taken. Please choose a different key."
+        )
     github_repo_clean = None
     if project_data.github_repo:
         github_repo_clean = project_data.github_repo.strip().rstrip("/").removesuffix(".git")
@@ -301,7 +389,10 @@ def get_user_projects(db: Session = Depends(get_db), current_user: models.User =
         models.ProjectMember.status == models.InvitationStatus.ACCEPTED
     ).subquery()
 
-    projects = db.query(models.Project).filter(
+    projects = db.query(models.Project).options(
+        joinedload(models.Project.members),
+        joinedload(models.Project.tasks).joinedload(models.Task.assignees)
+    ).filter(
         or_(
             models.Project.owner_id == current_user.id,
             models.Project.id.in_(member_project_ids)
@@ -316,6 +407,10 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
     if not project or not is_user_project_member_or_owner(project.id, current_user.id, db):
         raise HTTPException(status_code=404, detail="Project not found or access denied")
     
+    member = db.query(models.ProjectMember).filter(models.ProjectMember.project_id == project.id, models.ProjectMember.user_id == current_user.id).first()
+    if member:
+        member.last_accessed_at = datetime.utcnow()
+        db.commit()
     columns = db.query(models.TaskColumn).filter(models.TaskColumn.project_id == project.id).order_by(models.TaskColumn.position).all()
     accepted_members = db.query(models.User).join(models.ProjectMember).filter(
         models.ProjectMember.project_id == project.id,
@@ -357,6 +452,15 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
                         "progress": t.progress_prec,
                         "progress_prec": t.progress_prec,
                         "savedProgressBackend": t.saved_progress,
+                        "assignees": [
+                                {
+                                    "id": user.id,
+                                    "email": user.email,
+                                    "name": user.name,
+                                    "surname": user.surname,
+                                    "avatar_url": user.avatar_url
+                                } for user in t.assignees
+                            ] if t.assignees else [],
                         "subtasks": [
                             {
                                 "id": f"{t.id}_{idx + 1}",
@@ -373,6 +477,21 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
             } for col in columns
         ]
     }
+
+@app.get("/api/projects/recent", response_model=list[schemas.ProjectResponse])
+def get_recent_projects(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    recent_projects = db.query(models.Project)\
+        .join(models.ProjectMember, models.Project.id == models.ProjectMember.project_id)\
+        .filter(
+            models.ProjectMember.user_id == current_user.id,
+            models.ProjectMember.status == models.InvitationStatus.ACCEPTED,
+            models.ProjectMember.last_accessed_at.isnot(None)
+        )\
+        .order_by(models.ProjectMember.last_accessed_at.desc())\
+        .limit(4)\
+        .all()
+
+    return recent_projects
 
 @app.post("/api/projects/{project_id}/columns", response_model=schemas.ColumnResponse, status_code=status.HTTP_201_CREATED)
 def create_project_column(project_id: int, column_data: schemas.ColumnCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -396,6 +515,28 @@ def reorder_columns(project_id: int, order_data: schemas.ColumnOrderUpdate, db: 
     db.commit()
     return {"message": "Columns order updated successfully"}
 
+@app.put("/api/projects/{project_id}/columns/{column_id}/tasks/reorder")
+def reorder_tasks(
+    project_id: int, 
+    column_id: int, 
+    order_data: schemas.TaskOrderUpdate, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    if not is_user_project_member_or_owner(project_id, current_user.id, db):
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    for index, task_id in enumerate(order_data.task_ids):
+        task = db.query(models.Task).filter(
+            models.Task.id == task_id, 
+            models.Task.column_id == column_id
+        ).first()
+        if task:
+            task.position = index
+            
+    db.commit()
+    return {"message": "Task order updated successfully"}
+
 @app.post("/api/projects/{project_id}/columns/{column_id}/tasks", response_model=schemas.TaskResponse, status_code=status.HTTP_201_CREATED)
 def create_task(project_id: int, column_id: int, task_data: schemas.TaskCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     if not is_user_project_member_or_owner(project_id, current_user.id, db):
@@ -403,12 +544,19 @@ def create_task(project_id: int, column_id: int, task_data: schemas.TaskCreate, 
 
     start_date_datetime = datetime.combine(task_data.start_date, datetime.min.time()) if task_data.start_date else None
     deadline_datetime = datetime.combine(task_data.deadline, datetime.min.time()) if task_data.deadline else None
-    new_task = models.Task(name=task_data.name, desc=task_data.desc, priority=task_data.priority, start_date=start_date_datetime, deadline=deadline_datetime, project_id=project_id, column_id=column_id)
+    new_task = models.Task(name=task_data.name, desc=task_data.desc, priority=task_data.priority, start_date=start_date_datetime, deadline=deadline_datetime, project_id=project_id, column_id=column_id)    
     
+    if task_data.assignee_ids:
+        new_task.assignees = db.query(models.User).filter(models.User.id.in_(task_data.assignee_ids)).all()
+
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
     
+    # Assignment Notification
+    if task_data.assignee_ids:
+        notif_service.update_task_assignees(new_task, task_data.assignee_ids, current_user, db)
+
     if task_data.subtasks:
         total = len(task_data.subtasks)
         completed = 0
@@ -449,8 +597,16 @@ def update_project(
     else:
         project.github_repo = None
     
+    # Check for project deadline change
     if project_data.deadline:
-        project.deadline = datetime.combine(project_data.deadline, datetime.min.time())
+        new_deadline = datetime.combine(project_data.deadline, datetime.min.time())
+        if project.deadline != new_deadline:
+            accepted_members = db.query(models.ProjectMember).filter(
+                models.ProjectMember.project_id == project.id,
+                models.ProjectMember.status == models.InvitationStatus.ACCEPTED
+            ).all()
+            notif_service.notify_project_deadline_change(project, new_deadline, accepted_members, db)
+        project.deadline = new_deadline
     else:
         project.deadline = None
 
@@ -462,7 +618,7 @@ def update_project(
 def delete_project(project_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == current_user.id).first()
     if not project:
-        raise HTTPException(status_code=404, detail="Project not found or you are not owner")
+        raise HTTPException(status_code=404, detail="Project not found or you are not the owner")
     db.delete(project)
     db.commit()
     return {"message": "Project deleted successfully"}
@@ -517,6 +673,15 @@ def update_task(project_id: int, column_id: int, task_id: int, task_data: schema
     task.deadline = datetime.combine(task_data.deadline, datetime.min.time()) if task_data.deadline else None
     task.start_date = datetime.combine(task_data.start_date, datetime.min.time()) if task_data.start_date else None
     
+    # Task Assignee Notification
+    new_assignee_ids = task_data.assignee_ids or []
+    notif_service.update_task_assignees(task, new_assignee_ids, current_user, db)
+
+    if task_data.assignee_ids is not None:
+        task.assignees = db.query(models.User).filter(models.User.id.in_(task_data.assignee_ids)).all()
+    else:
+        task.assignees = []
+
     db.query(models.Subtask).filter(models.Subtask.task_id == task.id).delete()
 
     if task_data.subtasks:
@@ -547,9 +712,15 @@ def move_task(task_id: int, column_id: int, db: Session = Depends(get_db), curre
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task or not is_user_project_member_or_owner(task.project_id, current_user.id, db):
         raise HTTPException(status_code=404, detail="Task not found or access denied")
+    
     task.column_id = column_id
     db.commit()
     db.refresh(task)
+
+    target_column = db.query(models.TaskColumn).filter(models.TaskColumn.id == column_id).first()
+    if target_column:
+        notif_service.notify_task_status_change(task, target_column.name, current_user, db)
+
     return {"id": task.id, "column_id": task.column_id, "message": "Task moved successfully"}
 
 @app.put("/api/subtasks/{subtask_id}/toggle-complete")
@@ -636,18 +807,18 @@ def toggle_any_task_complete(task_id: int, toggle: schemas.TaskProgressToggle, d
 async def github_webhook(request: Request, db: Session = Depends(get_db)):
     payload = await request.json()
     commits = payload.get("commits", [])
-    print(f"Otrzymano webhook z GitHuba. Liczba commitów: {len(commits)}")
+    print(f"GitHub webhook received. Number of commits: {len(commits)}")
     
     for commit in commits:
         message = commit.get("message", "")
-        print(f"Wiadomość commita: {message}")
+        print(f"Commit message: {message}")
         
         subtask_match = re.search(r'#(\d+)_(\d+)', message)
         
         if subtask_match:
             parent_id = int(subtask_match.group(1))
             subtask_order_num = int(subtask_match.group(2))
-            print(f"Znaleziono Subtask: Zadanie #{parent_id}, Podzadanie numer: {subtask_order_num}")
+            print(f"Subtask found: Task #{parent_id}, Subtask order number: {subtask_order_num}")
             
             parent_task = db.query(models.Task).filter(models.Task.id == parent_id).first()
             if parent_task:
@@ -664,15 +835,15 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
                     
                     db.commit()
                     update_project_progress(parent_task.project_id, db)
-                    print(f"Subzadanie #{parent_id}_{subtask_order_num} oznaczone jako wykonane!")
+                    print(f"Subtask #{parent_id}_{subtask_order_num} marked as completed!")
                 else:
-                    print(f"Brak subzadania o numerze porządkowym {subtask_order_num} dla zadania #{parent_id}")
+                    print(f"No subtask with order number {subtask_order_num} found for task #{parent_id}")
             continue
 
         main_match = re.search(r'#(\d+)', message)
         if main_match:
             target_id = int(main_match.group(1))
-            print(f"Znaleziono ID zadania głównego: #{target_id}")
+            print(f"Main task ID found: #{target_id}")
         
             task = db.query(models.Task).filter(models.Task.id == target_id).first()
             if task:
@@ -685,11 +856,13 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
                 
                 db.commit()
                 update_project_progress(task.project_id, db)
-                print(f"Główne zadanie #{target_id} oraz jego podzadania zostały oznaczone jako ukończone!")
+                print(f"Main task #{target_id} and its subtasks marked as completed!")
             else:
-                print(f"Nie znaleziono w bazie zadania o ID #{target_id}")
+                print(f"Task with ID #{target_id} not found in database")
             
     return {"status": "success", "message": "Webhook processed"}
+
+# --- USERS ENDPOINTS ---
 
 @app.get("/api/users/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(get_current_user)):
@@ -722,7 +895,7 @@ def update_user_email(email_data: schemas.UserEmailUpdate, background_tasks: Bac
 
     existing_user = get_user_by_email(db, email_data.new_email)
     if existing_user and existing_user.id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already taken.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already taken")
 
     old_email = current_user.email
     current_user.email = email_data.new_email
@@ -755,7 +928,7 @@ def request_email_change(
 
     existing_user = get_user_by_email(db, email_data.new_email)
     if existing_user and existing_user.id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already taken.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is already taken")
 
     token = str(uuid.uuid4())
     
@@ -771,7 +944,7 @@ def request_email_change(
 
     send_confirmation_email_background(email_data.new_email, token, "email", background_tasks)
 
-    return {"message": "Confirmation link sent to your new email address. Please check your inbox."}
+    return {"message": "Confirmation link sent to your new email address. Please check your inbox"}
 
 @app.put("/api/users/me/request-password-change")
 def request_password_change(
@@ -797,7 +970,7 @@ def request_password_change(
 
     send_confirmation_email_background(current_user.email, token, "password", background_tasks)
 
-    return {"message": "Confirmation link sent to your email address. Please check your inbox."}
+    return {"message": "Confirmation link sent to your email address. Please check your inbox"}
 
 @app.post("/api/auth/confirm-change")
 def confirm_change(token: str, db: Session = Depends(get_db)):
@@ -809,11 +982,11 @@ def confirm_change(token: str, db: Session = Depends(get_db)):
     if datetime.utcnow() > change_request.expires_at:
         db.delete(change_request)
         db.commit()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Confirmation link has expired (10 minutes limit).")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Confirmation link has expired (10 minutes limit)")
 
     user = db.query(models.User).filter(models.User.id == change_request.user_id).first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     data = json.loads(change_request.data_json)
 
@@ -827,14 +1000,16 @@ def confirm_change(token: str, db: Session = Depends(get_db)):
 
     return {"message": "Changes confirmed and successfully applied!"}
 
+# --- PROJECT JOIN REQUESTS ---
+
 @app.post("/api/projects/join-request", status_code=status.HTTP_201_CREATED)
 def request_join_project(request_data: schemas.ProjectJoinRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.project_key == request_data.project_key).first()
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nie znaleziono projektu o podanym kluczu.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project with the specified key was not found")
 
     if project.owner_id == current_user.id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Jesteś właścicielem tego projektu.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You are the owner of this project")
 
     existing_member = db.query(models.ProjectMember).filter(
         models.ProjectMember.project_id == project.id,
@@ -842,7 +1017,7 @@ def request_join_project(request_data: schemas.ProjectJoinRequest, background_ta
     ).first()
     
     if existing_member and existing_member.status == models.InvitationStatus.ACCEPTED:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Należysz już do tego projektu.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You are already a member of this project")
 
     existing_requests = db.query(models.PendingChange).filter(
         models.PendingChange.type == "project_join",
@@ -855,7 +1030,7 @@ def request_join_project(request_data: schemas.ProjectJoinRequest, background_ta
             if datetime.utcnow() <= req.expires_at:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, 
-                    detail="Wysłałeś już prośbę do tego projektu. Odczekaj na decyzję właściciela lub wygaśnięcie prośby."
+                    detail="You have already submitted a join request for this project. Please wait for the owner's decision or request expiration"
                 )
             else:
                 db.delete(req)
@@ -875,9 +1050,18 @@ def request_join_project(request_data: schemas.ProjectJoinRequest, background_ta
     db.add(pending_entry)
     db.commit()
 
-    owner = db.query(models.User).filter(models.User.id == project.owner_id).first()
     requester_full_name = f"{current_user.name or ''} {current_user.surname or ''}".strip() or current_user.email
     
+    notif_service.create_notification(
+        db=db,
+        user_id=project.owner_id,
+        title="Access Request",
+        message=f"{requester_full_name} requested access to the project '{project.name}'.",
+        notification_type="JOIN_REQUEST",
+        project_id=project.id
+    )
+
+    owner = db.query(models.User).filter(models.User.id == project.owner_id).first()
     send_join_request_email_background(
         owner_email=owner.email,
         requester_name=requester_full_name,
@@ -888,14 +1072,14 @@ def request_join_project(request_data: schemas.ProjectJoinRequest, background_ta
     )
 
     return {
-        "message": "Prośba o dołączenie została wysłana do właściciela projektu.",
+        "message": "Join request has been sent to the project owner.",
         "expires_at": expires_at
     }
 
 @app.get("/api/projects/confirm-join-request-link")
 def confirm_join_request_link(token: str, action: str, db: Session = Depends(get_db)):
     if action not in ["accept", "reject"]:
-        return RedirectResponse(url="http://localhost:5173/login?error=Nieprawidlowa+akcja")
+        return RedirectResponse(url="http://localhost:5173/login?error=Invalid+action")
 
     change_request = db.query(models.PendingChange).filter(
         models.PendingChange.token == token,
@@ -903,12 +1087,12 @@ def confirm_join_request_link(token: str, action: str, db: Session = Depends(get
     ).first()
 
     if not change_request:
-        return RedirectResponse(url="http://localhost:5173/login?error=Link+jest+nieprawidlowy+lub+zostal+juz+wykorzystany")
+        return RedirectResponse(url="http://localhost:5173/login?error=Invalid+or+already+used+link")
 
     if datetime.utcnow() > change_request.expires_at:
         db.delete(change_request)
         db.commit()
-        return RedirectResponse(url="http://localhost:5173/login?error=Proska+o+dolaczenie+wygasla+(limit+24h)")
+        return RedirectResponse(url="http://localhost:5173/login?error=Join+request+has+expired+(24h+limit)")
 
     data = json.loads(change_request.data_json)
     project_id = data.get("project_id")
@@ -930,11 +1114,237 @@ def confirm_join_request_link(token: str, action: str, db: Session = Depends(get
         else:
             existing_member.status = models.InvitationStatus.ACCEPTED
 
-        msg = "Uzytkownik+zostal+pomyslnie+dodany+do+projektu!"
+        msg = "User+has+been+successfully+added+to+the+project!"
     else:
-        msg = "Proska+o+dolaczenie+zostala+odrzucona."
+        msg = "Join+request+has+been+declined."
 
     db.delete(change_request)
     db.commit()
 
     return RedirectResponse(url=f"http://localhost:5173/login?msg={msg}")
+
+# --- PROJECT MEMBERS ---
+
+@app.get("/api/users/search", response_model=schemas.UserResponse)
+def search_user_by_email(email: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    user = get_user_by_email(db, email.strip())
+    if not user:
+        raise HTTPException(status_code=404, detail="User with the provided email address does not exist")
+    return user
+
+@app.post("/api/projects/{project_id}/invitations", status_code=201)
+def invite_member_to_project(
+    project_id: int, 
+    member_data: schemas.AddMemberRequest, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project does not exist.")
+        
+    if not is_user_project_member_or_owner(project_id, current_user.id, db):
+        raise HTTPException(status_code=403, detail="Permission denied to add users.")
+
+    user_to_add = get_user_by_email(db, member_data.email)
+    if not user_to_add:
+        raise HTTPException(status_code=404, detail="User with the provided email address does not exist")
+
+    existing_member = db.query(models.ProjectMember).filter(
+        models.ProjectMember.project_id == project_id,
+        models.ProjectMember.user_id == user_to_add.id
+    ).first()
+
+    if existing_member and existing_member.status == models.InvitationStatus.ACCEPTED:
+        raise HTTPException(status_code=400, detail="User is already a member of this project")
+
+    if not existing_member:
+        new_member = models.ProjectMember(
+            user_id=user_to_add.id,
+            project_id=project_id,
+            status=models.InvitationStatus.PENDING
+        )
+        
+        db.add(new_member)
+        db.commit()
+
+    token = str(uuid.uuid4())
+    pending_entry = models.PendingChange(
+        token=token,
+        type="project_invite",
+        user_id=user_to_add.id,
+        data_json=json.dumps({"project_id": project_id}),
+        expires_at=datetime.utcnow() + timedelta(days=7)
+    )
+    db.add(pending_entry)
+    db.commit()
+
+    # Send in-app notification
+    notif_service.send_project_invite(project, user_to_add, current_user, db)
+
+    inviter_name = f"{current_user.name or ''} {current_user.surname or ''}".strip() or current_user.email
+
+    send_project_invitation_email_background(
+        invited_email=user_to_add.email,
+        inviter_name=inviter_name,
+        project_name=project.name,
+        token=token,
+        background_tasks=background_tasks
+    )
+
+    return {"message": "Invitation sent successfully via email"}
+
+@app.get("/api/projects/confirm-invitation")
+def confirm_invitation(token: str, action: str, db: Session = Depends(get_db)):
+    if action not in ["accept", "reject"]:
+        return RedirectResponse(url="http://localhost:5173/login?error=Invalid+action")
+
+    change_request = db.query(models.PendingChange).filter(
+        models.PendingChange.token == token,
+        models.PendingChange.type == "project_invite"
+    ).first()
+
+    if not change_request:
+        return RedirectResponse(url="http://localhost:5173/login?error=Invitation+is+invalid+or+has+expired")
+
+    if datetime.utcnow() > change_request.expires_at:
+        db.delete(change_request)
+        db.commit()
+        return RedirectResponse(url="http://localhost:5173/login?error=Invitation+has+expired")
+
+    data = json.loads(change_request.data_json)
+    project_id = data.get("project_id")
+    user_id = change_request.user_id
+
+    member = db.query(models.ProjectMember).filter(
+        models.ProjectMember.project_id == project_id,
+        models.ProjectMember.user_id == user_id
+    ).first()
+
+    if action == "accept":
+        if member:
+            member.status = models.InvitationStatus.ACCEPTED
+        
+        project = db.query(models.Project).filter(models.Project.id == project_id).first()
+        accepted_user = db.query(models.User).filter(models.User.id == user_id).first()
+        if project and accepted_user:
+            notif_service.accept_project_invite(project, accepted_user, db)
+
+        msg = "Invitation+accepted!+You+joined+the+project."
+    else:
+        if member:
+            db.delete(member)
+        msg = "Invitation+has+been+declined."
+
+    db.delete(change_request)
+    db.commit()
+
+    return RedirectResponse(url=f"http://localhost:5173/login?msg={msg}")
+
+@app.delete("/api/projects/{project_id}/members/{user_id}")
+def remove_member_from_project(project_id: int, user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project does not exist.")
+
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the project owner can remove members")
+
+    if user_id == project.owner_id:
+        raise HTTPException(status_code=400, detail="The owner cannot remove themselves from the project")
+
+    member = db.query(models.ProjectMember).filter(
+        models.ProjectMember.project_id == project_id,
+        models.ProjectMember.user_id == user_id
+    ).first()
+
+    if not member:
+        raise HTTPException(status_code=404, detail="User is not a member of this project.")
+
+    target_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if target_user:
+        notif_service.remove_member_from_project(project, target_user, db)
+
+    db.delete(member)
+    db.commit()
+    return {"message": "User removed from project."}
+
+@app.post("/api/projects/{project_id}/leave")
+def leave_project(project_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project does not exist.")
+
+    if project.owner_id == current_user.id:
+        raise HTTPException(status_code=400, detail="The project owner cannot leave it. Use the delete project option instead")
+
+    member = db.query(models.ProjectMember).filter(
+        models.ProjectMember.project_id == project_id,
+        models.ProjectMember.user_id == current_user.id
+    ).first()
+
+    if not member:
+        raise HTTPException(status_code=400, detail="You are not a member of this project")
+
+    db.delete(member)
+    db.commit()
+    return {"message": "Successfully left the project"}
+
+
+@app.get("/api/notifications", response_model=List[schemas.NotificationResponse])
+def get_user_notifications(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    notifications = db.query(models.Notification).filter(models.Notification.user_id == current_user.id).order_by(models.Notification.created_at.desc()).all()
+    return notifications
+
+@app.patch("/api/notifications/{notification_id}/read")
+def mark_notification_as_read(notification_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    notification = db.query(models.Notification).filter(models.Notification.id == notification_id, models.Notification.user_id == current_user.id).first()
+
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    notification.is_read = True
+    db.commit()
+    return {"message": "Notification marked as read"}
+
+@app.post("/api/projects/join-requests/{pending_change_id}/respond")
+def respond_to_join_request(pending_change_id: int, payload: dict, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    accept = payload.get("accept", False)
+
+    change_request = db.query(models.PendingChange).filter(
+        models.PendingChange.id == pending_change_id,
+        models.PendingChange.type == "project_join"
+    ).first()
+
+    if not change_request:
+        raise HTTPException(status_code=404, detail="Join request not found or expired")
+
+    data = json.loads(change_request.data_json)
+    project_id = data.get("project_id")
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project or project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only project owner can manage access requests")
+
+    requester_id = change_request.user_id
+
+    if accept:
+        existing_member = db.query(models.ProjectMember).filter(
+            models.ProjectMember.project_id == project_id,
+            models.ProjectMember.user_id == requester_id
+        ).first()
+
+        if not existing_member:
+            new_member = models.ProjectMember(
+                user_id=requester_id,
+                project_id=project_id,
+                status=models.InvitationStatus.ACCEPTED
+            )
+            db.add(new_member)
+        else:
+            existing_member.status = models.InvitationStatus.ACCEPTED
+
+    db.delete(change_request)
+    db.commit()
+
+    return {"message": "Request successfully processed"}

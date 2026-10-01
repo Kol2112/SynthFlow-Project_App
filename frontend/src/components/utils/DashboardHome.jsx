@@ -1,7 +1,10 @@
+import React from 'react';
 import { useOutletContext } from 'react-router-dom';
-import PanelView from '..//PanelView.jsx';
+import PanelView from '../PanelView.jsx';
 import LatestProject from '../LatestProject.jsx';
+import ComingTasks from '../ComingTasks.jsx';
 import EmptyDashboard from '../emptyDashboard.jsx';
+import '../../styles/share.css';
 
 export default function DashboardHome() {
     const { projects, setProjects } = useOutletContext();
@@ -11,8 +14,16 @@ export default function DashboardHome() {
     }
 
     return (
-        <div className='contentPanels'>
-            <PanelView headerTitle={'Latest Project'} content={<LatestProject projects={projects} setProjects={setProjects} />} />
+        <div className='dashboardContentPanels'>
+            <PanelView 
+                headerTitle={'Latest Project'} 
+                content={<LatestProject projects={projects} setProjects={setProjects} />} 
+            />
+
+            <PanelView 
+                headerTitle={'Upcoming tasks'} 
+                content={<ComingTasks/>} 
+            />
         </div>
     );
 }

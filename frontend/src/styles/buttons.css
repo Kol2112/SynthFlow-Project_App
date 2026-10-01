@@ -5,9 +5,9 @@
     bottom: 2rem;
     padding: 1rem;
 
-    color: #E6EDF3;
+    color: var(--text-primary);
     border-radius: 1rem;
-    border: 2px solid #E6EDF3;
+    border: 2px solid var(--text-primary);
     svg{
         text-align: center;
         vertical-align: middle;

@@ -1,0 +1,211 @@
+.userPickerContainer {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+    font-family: var(--font-secondary);
+
+    .userPickerLabel {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+    }
+
+    .userPickerRow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        position: relative;
+        height: 36px;
+
+        .addMemberBtn {
+            background: transparent;
+            border: 1px dashed #444c56;
+            color: rgba(139, 148, 158, 0.3);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 2;
+
+            &:hover, &.active {
+                border-color: #b5beca;
+                color: #b5beca;
+            }
+        }
+
+        .pickerContentWrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            height: 100%;
+            overflow: hidden;
+
+            .avatarsList {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                transition: opacity 0.2s ease, transform 0.2s ease;
+                opacity: 1;
+                transform: translateX(0);
+
+                &.hidden {
+                    opacity: 0;
+                    pointer-events: none;
+                    transform: translateX(-10px);
+                }
+
+                .avatarWrapper {
+                    position: relative;
+                    width: 34px;
+                    height: 34px;
+
+                    &:hover .removeAvatarBtn {
+                        display: flex;
+                    }
+
+                    .userAvatarImg, .userAvatarFallback {
+                        width: 100%;
+                        height: 100%;
+                        border-radius: 50%;
+                        object-fit: cover;
+                    }
+
+                    .userAvatarFallback {
+                        background-color: #30363D;
+                        color: #ffffff;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-weight: bold;
+                        font-size: 0.85rem;
+                    }
+                }
+            }
+
+            .userSearchSlide {
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 0;
+                opacity: 0;
+                overflow: hidden;
+                transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+                display: flex;
+                align-items: center;
+
+                &.open {
+                    width: 100%;
+                    max-width: 280px;
+                    opacity: 1;
+                }
+
+                .userSearchInput {
+                    width: 100%;
+                    height: 34px;
+                    padding: 0 12px;
+                    background: #0d1117;
+                    border: 1px solid #30363d;
+                    border-radius: 6px;
+                    color: var(--text-primary);
+                    font-size: 0.85rem;
+                    font-family: var(--font-secondary);
+                    outline: none;
+                    transition: border-color 0.2s ease;
+
+                    &:focus {
+                        border-color: #58a6ff;
+                    }
+                }
+            }
+        }
+    }
+
+    .searchResultsContainer {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+
+        .foundUserBadge {
+            padding: 8px 12px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+
+            &:hover {
+                background: #1f242c;
+            }
+
+            .badgeAvatar {
+                width: 32px;
+                height: 32px;
+                min-width: 32px;
+
+                img, .badgeAvatarFallback {
+                    width: 100%;
+                    height: 100%;
+                    border-radius: 50%;
+                    object-fit: cover;
+                }
+
+                .badgeAvatarFallback {
+                    background-color: var(--color-success);
+                    color: #ffffff;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: 500;
+                    font-size: 0.85rem;
+                }
+            }
+
+            .badgeUserInfo {
+                display: flex;
+                flex-direction: column;
+                flex-grow: 1;
+                overflow: hidden;
+
+                .userName {
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                    color: #f0f6fc;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .userEmail {
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+            }
+        }
+    }
+
+    .addHint {
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .userSearchError {
+        color: var(--color-danger);
+        font-size: 0.75rem;
+        margin-top: 2px;
+    }
+}

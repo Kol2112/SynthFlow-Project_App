@@ -1,18 +1,21 @@
+// App.jsx
 import Login from "./components/Login.jsx"
 import MainPage from "./components/MainPage.jsx"
 import DashboardHome from "./components/utils/DashboardHome.jsx" 
+import AllProjects from "./components/AllProjects.jsx"
 import RecoveryPage from "./components/RecoveryPage.jsx"
 import CreateAccount from "./components/CreateAccount.jsx"
-import ActivationPage from './components/ActivationPage';
+// USAUNIĘTO: import ActivationPage from './components/ActivationPage';
 import ProjectDetailsPage from "./components/ProjectDetailsPage.jsx";
 import Account from "./components/Account.jsx"
-import Settings from "./components/Settings.jsx"; // <--- 1. IMPORT
+import Settings from "./components/Settings.jsx";
 import ConfirmChange from "./components/utils/ConfirmChange.jsx"
+import Analytics from "./components/Analytics.jsx";
 import { Route, Routes, Navigate } from "react-router-dom"
 
 function App() {
     const ProtectedRoute = ({ children }) => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         if (!token) {
             return <Navigate to="/" replace />;
         }
@@ -20,7 +23,7 @@ function App() {
     };
 
     const PublicOnlyRoute = ({children}) =>{
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         if(token){
             return <Navigate to="/dashboard" replace/>;
         }
@@ -43,7 +46,7 @@ function App() {
 
             <Route path='/register' element={<PublicOnlyRoute><CreateAccount /></PublicOnlyRoute>} />
             <Route path='/recovery' element={<PublicOnlyRoute><RecoveryPage /></PublicOnlyRoute>} />
-            <Route path="/activate" element={<PublicOnlyRoute><ActivationPage /></PublicOnlyRoute>} />
+            {/* USUNIĘTO: <Route path="/activate" element={<PublicOnlyRoute><ActivationPage /></PublicOnlyRoute>} /> */}
             
             <Route path="/confirm-change" element={<ConfirmChange />} />
             
@@ -53,6 +56,8 @@ function App() {
                 </ProtectedRoute>
             }>
                 <Route path="/dashboard" element={<DashboardHome />} />
+                <Route path="/projects" element={<AllProjects />} />
+                <Route path="/analytics" element={<Analytics />} />
                 <Route path="/account" element={<Account />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="project/:projectKey" element={<ProjectDetailsPage />} />
@@ -64,3 +69,4 @@ function App() {
 }
 
 export default App
+

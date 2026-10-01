@@ -2,14 +2,14 @@
     max-width: 900px;
     margin: 2rem auto;
     padding: 0 1.5rem;
-    font-family: 'Roboto', sans-serif;
-    color: #C9D1D9;
+    font-family: var(--font-secondary);
+    color: var(--text-primary);
 
     .accountTitle {
-        font-family: 'JetBrains Mono', monospace;
         font-size: 1.8rem;
         margin-bottom: 2rem;
-        color: #F0F6FC;
+        font-family: var(--font-main);
+        color: var(--text-primary);
         border-bottom: 1px solid #30363D;
         padding-bottom: 0.75rem;
     }
@@ -20,12 +20,24 @@
         border-radius: 8px;
         padding: 1.5rem;
         margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #30363d;
 
         .sectionTitle {
             font-size: 1.2rem;
             margin-top: 0;
             margin-bottom: 1.2rem;
-            color: #F0F6FC;
+            font-family: var(--font-main);
+            color: var(--text-primary);
+
+            &.dangerTitle {
+                color: var(--color-danger);
+            }
+        }
+
+        .sectionText {
+            color: var(--text-secondary);
+            margin-bottom: 15px;
         }
 
         .avatarUploadGroup {
@@ -52,7 +64,7 @@
                 transition: border-color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 
                 &:hover {
-                    border-color: #8B949E;
+                    border-color: var(--text-secondary);
                     transform: scale(1.02);
                 }
 
@@ -77,9 +89,14 @@
                 flex-direction: column;
                 gap: 0.5rem;
 
+                .avatarButtonsGroup {
+                    display: flex;
+                    gap: 10px;
+                }
+
                 .btnChangeAvatar {
                     background-color: #21262D;
-                    color: #C9D1D9;
+                    color: var(--text-primary);
                     border: 1px solid #30363D;
                     border-radius: 6px;
                     padding: 0.5rem 1rem;
@@ -91,7 +108,7 @@
 
                     &:hover:not(:disabled) {
                         background-color: #30363D;
-                        border-color: #8B949E;
+                        border-color: var(--text-secondary);
                     }
 
                     &:disabled {
@@ -103,96 +120,97 @@
                 .avatarHint {
                     margin: 0;
                     font-size: 0.8rem;
-                    color: #8B949E;
+                    color: var(--text-secondary);
+                }
+            }
+        }
+
+        .accountForm {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 400px;
+
+            .formGroup {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+                font-family: var(--font-secondary);
+
+                label {
+                    font-size: 0.9rem;
+                    color: var(--text-primary);
+                }
+
+                input {
+                    background-color: var(--input-bg);
+                    border: 1px solid #30363d;
+                    color: var(--text-primary);
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 0.95rem;
+
+                    &::placeholder {
+                        color: var(--placeholder-color);
+                    }
+
+                    &:focus {
+                        outline: none;
+                        border-color: #58a6ff;
+                    }
+                }
+            }
+
+            .btnSubmit {
+                background-color: #238636;
+                font-family: var(--font-main);
+                color: var(--text-primary);
+                border: none;
+                padding: 9px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 500;
+                margin-top: 5px;
+                align-self: flex-start;
+
+                &:hover {
+                    background-color: var(--color-success);
                 }
             }
         }
     }
-}
 
-.btnDeleteAvatar {
-    background-color: transparent;
-    color: #f85149;
-    border: 1px solid #f85149;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.2s, color 0.2s;
-}
+    .btnDeleteAvatar {
+        background-color: transparent;
+        font-family: var(--font-main);
+        color: var(--color-danger);
+        border: 1px solid var(--color-danger);
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s, color 0.2s;
 
-.btnDeleteAvatar:hover {
-    background-color: #f85149;
-    color: #ffffff;
-}
+        &:hover {
+            background-color: var(--color-danger);
+            color: #ffffff;
+        }
 
-.btnDeleteAvatar:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
 
-.accountSection {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid #30363d;
-}
+    .msgError {
+        color: var(--color-danger);
+        font-size: 0.85rem;
+        margin: 0;
+    }
 
-.accountForm {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    max-width: 400px;
-}
-
-.formGroup {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.formGroup label {
-    font-size: 0.9rem;
-    color: #c9d1d9;
-}
-
-.formGroup input {
-    background-color: #0d1117;
-    border: 1px solid #30363d;
-    color: #c9d1d9;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 0.95rem;
-}
-
-.formGroup input:focus {
-    outline: none;
-    border-color: #58a6ff;
-}
-
-.btnSubmit {
-    background-color: #238636;
-    color: white;
-    border: none;
-    padding: 9px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    margin-top: 5px;
-    align-self: flex-start;
-}
-
-.btnSubmit:hover {
-    background-color: #2ea44f;
-}
-
-.msgError {
-    color: #f85149;
-    font-size: 0.85rem;
-    margin: 0;
-}
-
-.msgSuccess {
-    color: #3fb950;
-    font-size: 0.85rem;
-    margin: 0;
+    .msgSuccess {
+        color: var(--color-success);
+        font-size: 0.85rem;
+        margin: 0;
+    }
 }

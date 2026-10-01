@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { IoMdArrowDropdown, IoMdArrowDropright } from "react-icons/io";
 
 import PriorityDots from './utils/PriorityDots.jsx';
+import ErrorMsg from './utils/ErrorMsg.jsx';
+import RenderAvatars from './utils/RenderAvatars.jsx';
 import '../styles/ProjectListView.css';
 
 export default function ProjectListView({ columns = [], onToggleTaskComplete, onToggleSubtaskComplete, onOpenEditModal }) {
   const [expandedTasks, setExpandedTasks] = useState({});
   const [copiedId, setCopiedId] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleCopyId = (e, id) => {
     e.stopPropagation();
@@ -33,6 +36,14 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
     return dateString;
   };
 
+  const getTaskAssignees = (task) => {
+    if (Array.isArray(task.assignees) && task.assignees.length > 0) return task.assignees;
+    if (Array.isArray(task.members) && task.members.length > 0) return task.members;
+    if (Array.isArray(task.users) && task.users.length > 0) return task.users;
+    if (task.assignee) return [task.assignee];
+    return [];
+  };
+
   const currentDate = new Date().toLocaleDateString('pl-PL', {
     day: '2-digit',
     month: '2-digit',
@@ -51,6 +62,7 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
 
   return (
     <div className="taskListContainer">
+      <ErrorMsg message={errorMessage} />
       <div className="taskListHeader">
         <div>Task name</div>
         <div>Status</div>
@@ -71,6 +83,7 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
             const isCompleted = task.progress === 100;
             const formattedDeadline = formatDate(task.date);
             const isOverdue = formattedDeadline !== 'No deadline' && currentDate > formattedDeadline;
+            const taskAssignees = getTaskAssignees(task);
 
             return (
               <div key={taskId} className={`taskItemGroup ${isExpanded ? 'expanded' : ''}`}>
@@ -117,9 +130,7 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                   </div>
 
                   <div>
-                    <div className="assigneeAvatar" title="Only you">
-                      <span className="avatarText">Only you</span>
-                    </div>
+                    <RenderAvatars members={taskAssignees} maxCount={6} />
                   </div>
 
                   <div>
@@ -155,6 +166,9 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                       const rawSubtaskDate = subtask.date || subtask.deadline || task.date;
                       const formattedSubtaskDeadline = formatDate(rawSubtaskDate);
                       const isSubtaskOverdue = formattedSubtaskDeadline !== 'No deadline' && currentDate > formattedSubtaskDeadline;
+                      const subtaskAssignees = getTaskAssignees(subtask).length > 0 
+                        ? getTaskAssignees(subtask) 
+                        : taskAssignees;
 
                       return (
                         <div key={subtask.id} className="subtaskRow">
@@ -177,9 +191,7 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                           </div>
 
                           <div>
-                            <div className="assigneeAvatar" title="Only you">
-                              <span className="avatarText">Only you</span>
-                            </div>
+                            <RenderAvatars members={subtaskAssignees} maxCount={6} />
                           </div>
 
                           <div>
@@ -187,7 +199,7 @@ export default function ProjectListView({ columns = [], onToggleTaskComplete, on
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (typeof subtask.id === 'string' && subtask.id.startsWith('temp-')) {
-                                  alert("Zapisz najpierw zadanie, aby móc zmieniać status nowych podzadań!");
+                                  setErrorMessage("Save the task first to change subtasks status!");
                                   return;
                                 }
                                 

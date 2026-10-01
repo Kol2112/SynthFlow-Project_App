@@ -3,26 +3,29 @@ import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { DragDropContext } from '@hello-pangea/dnd';
 
 import Modal from './Modal.jsx';
+import ConfirmationModal from './utils/ConfirmationModal.jsx'
 import PanelView from './PanelView.jsx';
 import CreateTask from './CreateTask.jsx';
 import CreateProject from './CreateProject.jsx';
 import ProjectDetailsModal from './ProjectDetailsModal.jsx';
 import ProjectKanbanView from './ProjectKanbanView.jsx';
 import ProjectListView from './ProjectListView.jsx';
-import ErrorMsg from './utils/ErrorMsg.jsx';
-import { useDeleteProject } from "./utils/helperFunctions.js";
+import { useDeleteProject, useDeleteTask, useDeleteColumn } from "./utils/helperFunctions.js";
 import '../styles/ProjectDetailsPage.css';
 
 export default function ProjectDetailsPage() {
     const { projectKey: urlProjectKey } = useParams();
-    const {setErrorMessage} = useOutletContext();
+    const { setErrorMessage } = useOutletContext();
 
-
+    const [isOwner, setIsOwner] = useState(false);
+    const [projectOwnerId, setProjectOwnerId] = useState(null);
+    const [currentUserId, setCurrentUserId] = useState(null);
 
     const [projectName, setProjectName] = useState("");
     const [projectKey, setProjectKey] = useState(urlProjectKey || "");
     const [projectId, setProjectId] = useState(null);
     const [projectDesc, setProjectsDesc] = useState("");
+    const [projectMembers, setProjectMembers] = useState([]);
     const [projectPriority, setProjectPriority] = useState("Low");
     const [projectDeadline, setProjectDeadline] = useState("");
     const [projectGithubRepo, setProjectGithubRepo] = useState("");
@@ -37,15 +40,20 @@ export default function ProjectDetailsPage() {
     const [activeColumnDropdown, setActiveColumnDropdown] = useState(null);
     const [activeTaskDropdown, setActiveTaskDropdown] = useState(null);
 
-
+    const [confirmDeleteProject, setConfirmDeleteProject] = useState(false);
+    const [confirmDeleteList, setConfirmDeleteList] = useState({ isOpen: false, columnId: null });
+    const [confirmDeleteTask, setConfirmDeleteTask] = useState({ isOpen: false, columnId: null, taskId: null });
 
     const [renameListModal, setRenameListModal] = useState({
         isOpen: false,
         columnId: null,
         name: ""
     });
+
     const navigate = useNavigate();
     const deleteProject = useDeleteProject();
+    const deleteTask = useDeleteTask();
+    const deleteColumn = useDeleteColumn();
 
     const [modalForm, setModalForm] = useState({
         isOpen: false,
@@ -58,15 +66,9 @@ export default function ProjectDetailsPage() {
         priority: "Low",
         startDate: "", 
         deadline: "",
-        subtasks: []   
+        subtasks: [],
+        assignees: []
     });
-
-    // useEffect(() => {
-    //     const savedViewMode = localStorage.getItem('project_view_mode');
-    //     if (savedViewMode) {
-    //         setViewMode(savedViewMode);
-    //     }
-    // }, []);
 
     useEffect(() => {
         const fetchProjectAndColumns = async () => {
@@ -93,13 +95,14 @@ export default function ProjectDetailsPage() {
 
                 if (data && data.id) {
                     setProjectId(data.id);
+                    setProjectOwnerId(data.owner_id);
                     setProjectName(data.name);
                     setProjectKey(data.project_key);
                     setProjectsDesc(data.desc || "");
                     setProjectPriority(data.priority || "Low");
                     setProjectDeadline(data.deadline || "");
-                    setProjectGithubRepo(data.github_repo || data.githubRepo || "")
-
+                    setProjectGithubRepo(data.github_repo || data.githubRepo || "");
+                    setProjectMembers(data.members || data.project_members || data.users || []);
                     const normalizedColumns = (data.columns || []).map(col => ({
                         ...col,
                         tasks: (col.tasks || []).map(task => {
@@ -133,7 +136,7 @@ export default function ProjectDetailsPage() {
                         if(savedViewMode){
                             setViewMode(savedViewMode);
                         }else{
-                            setViewMode('kanban')
+                            setViewMode('kanban');
                         }
                     }
                 } else {
@@ -141,7 +144,7 @@ export default function ProjectDetailsPage() {
                 }
             } catch (error) {
                 console.error("Error fetching columns:", error);
-                setErrorMessage("Failed to connect to the server")
+                setErrorMessage("Failed to connect to the server");
             } finally {
                 setIsLoading(false);
             }
@@ -153,6 +156,20 @@ export default function ProjectDetailsPage() {
     }, [urlProjectKey, navigate, setErrorMessage]);
 
     useEffect(() => {
+        const fetchMe = async () => {
+            const token = localStorage.getItem("token");
+            const res = await fetch("http://localhost:8000/api/users/me", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if(res.ok) {
+                const userData = await res.json();
+                setCurrentUserId(userData.id);
+            }
+        };
+        fetchMe();
+    }, []);
+
+    useEffect(() => {
         const handleOutsideClick = () => {
             setActiveColumnDropdown(null);
             setActiveTaskDropdown(null);
@@ -161,8 +178,14 @@ export default function ProjectDetailsPage() {
         return () => window.removeEventListener('click', handleOutsideClick);
     }, []);
 
-    const openEditModal = (type, data={}, columnId = null) => {
-        if(type === 'project'){
+    useEffect(() => {
+        if (projectOwnerId && currentUserId) {
+            setIsOwner(projectOwnerId === currentUserId);
+        }
+    }, [projectOwnerId, currentUserId]);
+
+    const openEditModal = (type, data = {}, columnId = null) => {
+        if (type === 'project') {
             setModalForm({
                 isOpen: true,
                 type: 'project',
@@ -176,13 +199,29 @@ export default function ProjectDetailsPage() {
                 deadline: projectDeadline ? projectDeadline.split('T')[0] : "",
                 projectKey: projectKey,
                 githubRepo: projectGithubRepo,
-                subtasks: []
+                members: projectMembers,
+                subtasks: [],
+                assignees: data.assignees || (data.assignee ? [data.assignee] : [])
             });
-        } else if(type === 'task'){
+        } else if (type === 'task') {
             let formattedDeadline = "";
             if (data.date && data.date !== "No deadline") {
                 formattedDeadline = data.date.split('-').reverse().join('-');
+            } else if (data.deadline) {
+                formattedDeadline = data.deadline.split('T')[0];
             }
+
+            let taskAssignees = [];
+            if (Array.isArray(data.assignees) && data.assignees.length > 0) {
+                taskAssignees = data.assignees;
+            } else if (Array.isArray(data.members) && data.members.length > 0) {
+                taskAssignees = data.members;
+            } else if (Array.isArray(data.users) && data.users.length > 0) {
+                taskAssignees = data.users;
+            } else if (data.assignee) {
+                taskAssignees = [data.assignee];
+            }
+
             setModalForm({
                 isOpen: true,
                 type: 'task',
@@ -192,10 +231,11 @@ export default function ProjectDetailsPage() {
                 name: data.name,
                 desc: data.desc || "",
                 priority: data.priority,
-                startDate: data.startDate || "", 
+                startDate: data.startDate || data.start_date || "", 
                 deadline: formattedDeadline,
                 projectKey: "",
-                subtasks: data.subtasks || []   
+                subtasks: data.subtasks || [],
+                assignees: taskAssignees
             });
         }
     };
@@ -213,7 +253,8 @@ export default function ProjectDetailsPage() {
             startDate: "", 
             deadline: "",
             projectKey: "",
-            subtasks: []   
+            subtasks: [],
+            assignees: []
         });
     };
 
@@ -240,39 +281,51 @@ export default function ProjectDetailsPage() {
         if (e && e.preventDefault) e.preventDefault();
         const token = localStorage.getItem("token");
 
-        if (modalForm.type === "project") {
-            const payload = {
-                name: modalForm.name,
-                desc: modalForm.desc,
-                priority: modalForm.priority,
-                deadline: modalForm.deadline || null,
-                github_repo: modalForm.githubRepo || modalForm.github_repo || null
-            };
+        const assigneeIds = (modalForm.assignees || []).map(u => u.id || u.user_id).filter(Boolean);
 
-            try {
-                const response = await fetch(`http://localhost:8000/api/projects/${projectId}`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify(payload)
-                });
+       if (modalForm.type === "project") {
+        const payload = {
+            name: modalForm.name,
+            desc: modalForm.desc,
+            priority: modalForm.priority,
+            start_date: modalForm.startDate || null,
+            deadline: modalForm.deadline || null,
+            github_repo: modalForm.githubRepo || null
+        };
 
-                if (!response.ok) throw new Error("Failed to update project");
+        try {
+            const response = await fetch(`http://localhost:8000/api/projects/${projectId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
 
-                const updatedProject = await response.json();
-                setProjectName(updatedProject.name);
-                setProjectsDesc(updatedProject.desc || "");
-                setProjectPriority(updatedProject.priority);
-                setProjectDeadline(updatedProject.deadline ? updatedProject.deadline.split("T")[0] : "");
-                setProjectGithubRepo(updatedProject.github_repo || updatedProject.githubRepo || "");
+            if (!response.ok) throw new Error("Failed to update project");
 
-                closeModal();
-            } catch (error) {
-                console.error("Error updating project: ", error);
+            const updatedProject = await response.json();
+            
+            setProjectName(updatedProject.name);
+            setProjectsDesc(updatedProject.desc || "");
+            setProjectPriority(updatedProject.priority);
+            setProjectDeadline(updatedProject.deadline ? updatedProject.deadline.split("T")[0] : "");
+            setProjectGithubRepo(updatedProject.github_repo || "");
+
+            // KROK KLUCZOWY: Aktualizacja listy projektów w stanie aplikacji
+            if (setProjects) {
+                setProjects(prevProjects => 
+                    prevProjects.map(p => p.id === updatedProject.id ? updatedProject : p)
+                );
             }
-        } else {
+
+            closeModal();
+        } catch (error) {
+            console.error("Error updating project: ", error);
+            setErrorMessage("Failed to update project");
+        }
+    } else {
             if (!modalForm.name || !modalForm.name.trim() || !projectId || !modalForm.columnId) return;
 
             const url = modalForm.isEdit
@@ -293,6 +346,9 @@ export default function ProjectDetailsPage() {
                         priority: modalForm.priority,
                         start_date: modalForm.startDate || null,
                         deadline: modalForm.deadline || null,
+                        assignee_id: assigneeIds[0] || null,
+                        assignee_ids: assigneeIds,
+                        assignees: modalForm.assignees || [],
                         subtasks: modalForm.subtasks || []
                     })
                 });
@@ -331,12 +387,20 @@ export default function ProjectDetailsPage() {
                 closeModal();
             } catch (error) {
                 console.error("Error creating or updating task: ", error);
+                setErrorMessage("Failed to save task");
             }
         }
     };
 
-    const handleDeleteProject = async () => {
-        deleteProject({ projectId, redirectTo: '/dashboard'});
+    const confirmExecuteDeleteProject = async () => {
+        try {
+            await deleteProject({ projectId, redirectTo: '/dashboard'});
+        } catch (error) {
+            console.error("Error deleting project:", error);
+            setErrorMessage("Failed to delete project");
+        } finally {
+            setConfirmDeleteProject(false);
+        }
     };
 
     const handleOnDragEnd = async (result) => {
@@ -345,45 +409,88 @@ export default function ProjectDetailsPage() {
         if (destination.droppableId === source.droppableId && destination.index === source.index) {
             return;
         }
+
         if (type === "column") {
             const reorderedColumns = Array.from(columns);
             const [removed] = reorderedColumns.splice(source.index, 1);
             reorderedColumns.splice(destination.index, 0, removed);
+            
             setColumns(reorderedColumns);
+
+            try {
+                const token = localStorage.getItem("token");
+                await fetch(`http://localhost:8000/api/projects/${projectId}/columns/reorder`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ column_ids: reorderedColumns.map(col => col.id) })
+                });
+            } catch (error) {
+                console.error("Error reordering columns:", error);
+                setErrorMessage("Could not update column order");
+            }
             return;
         }
+
         const sourceColId = parseInt(source.droppableId);
         const destColId = parseInt(destination.droppableId);
         const sourceCol = columns.find(col => col.id === sourceColId);
         const destCol = columns.find(col => col.id === destColId);
         
         if (!sourceCol || !destCol) return;
-        const sourceTask = Array.from(sourceCol.tasks);
-        const [movedTask] = sourceTask.splice(source.index, 1);
+        const sourceTasks = Array.from(sourceCol.tasks);
+        const [movedTask] = sourceTasks.splice(source.index, 1);
+
+        const token = localStorage.getItem("token");
+
         if (sourceColId === destColId) {
-            sourceTask.splice(destination.index, 0, movedTask);
-            setColumns(columns.map(col => col.id === sourceColId ? { ...col, tasks: sourceTask } : col));
+            sourceTasks.splice(destination.index, 0, movedTask);
+            setColumns(columns.map(col => col.id === sourceColId ? { ...col, tasks: sourceTasks } : col));
+
+            try {
+                const taskIds = sourceTasks.map(t => t.id);
+                await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${sourceColId}/tasks/reorder`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ task_ids: taskIds })
+                });
+            } catch (error) {
+                console.error("Error reordering tasks:", error);
+                setErrorMessage("Could not update task positions");
+            }
         } else {
             const destTasks = Array.from(destCol.tasks);
             destTasks.splice(destination.index, 0, movedTask);
 
             setColumns(columns.map(col => {
-                if (col.id === sourceColId) return { ...col, tasks: sourceTask };
+                if (col.id === sourceColId) return { ...col, tasks: sourceTasks };
                 if (col.id === destColId) return { ...col, tasks: destTasks };
                 return col;
             }));
 
             try {
-                const token = localStorage.getItem("token");
-                const response = await fetch(`http://localhost:8000/api/tasks/${movedTask.id}/move?column_id=${destColId}`, {
+                await fetch(`http://localhost:8000/api/tasks/${movedTask.id}/move?column_id=${destColId}`, {
                     method: "PUT",
                     headers: { "Authorization": `Bearer ${token}` }
                 });
-                if (!response.ok) {
-                    throw new Error("Failed to persist task movement in database");
-                }
+
+                const destTaskIds = destTasks.map(t => t.id);
+                await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${destColId}/tasks/reorder`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ task_ids: destTaskIds })
+                });
             } catch (error) {
-                console.error("Error moving task: ", error);
+                console.error("Error moving task:", error);
+                setErrorMessage("Could not update task position");
             }
         }
     };
@@ -413,6 +520,7 @@ export default function ProjectDetailsPage() {
             setIsListModalOpen(false);
         } catch (error) {
             console.error("Error creating list on backend:", error);
+            setErrorMessage("Failed to create list");
         }
     };
 
@@ -436,20 +544,16 @@ export default function ProjectDetailsPage() {
             setRenameListModal({ isOpen: false, columnId: null, name: "" });
         } catch (error) {
             console.error("Error renaming list:", error);
+            setErrorMessage("Failed to rename list");
         }
     };
 
-    const handleDeleteList = async (columnId) => {
-        if (!window.confirm("Are you sure you want to delete this list and all its tasks?")) return;
+    const confirmExecuteDeleteList = async () => {
+        const columnId = confirmDeleteList.columnId;
+        if (!columnId) return;
 
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${columnId}`, {
-                method: "DELETE",
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-
-            if (!response.ok) throw new Error("Failed to delete column");
+            await deleteColumn({ projectId, columnId });
 
             const remainingColumns = columns.filter(col => col.id !== columnId);
             setColumns(remainingColumns);
@@ -460,20 +564,18 @@ export default function ProjectDetailsPage() {
             }
         } catch (error) {
             console.error("Error deleting list:", error);
+            setErrorMessage("Failed to delete list");
+        } finally {
+            setConfirmDeleteList({ isOpen: false, columnId: null });
         }
     };
 
-    const handleDeleteTask = async (columnId, taskId) => {
-        if (!window.confirm("Are you sure you want to delete this task?")) return;
+    const confirmExecuteDeleteTask = async () => {
+        const { columnId, taskId } = confirmDeleteTask;
+        if (!columnId || !taskId) return;
 
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${columnId}/tasks/${taskId}`, {
-                method: "DELETE",
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-
-            if (!response.ok) throw new Error("Failed to delete task");
+            await deleteTask({ projectId, columnId, taskId });
 
             setColumns(columns.map(col => {
                 if (col.id === columnId) {
@@ -483,107 +585,110 @@ export default function ProjectDetailsPage() {
             }));
         } catch (error) {
             console.error("Error deleting task:", error);
+            setErrorMessage("Failed to delete task");
+        } finally {
+            setConfirmDeleteTask({ isOpen: false, columnId: null, taskId: null });
         }
     };
 
-const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTaskId = null) => {
-    if (typeof taskId === 'string' && taskId.startsWith('temp-')) {
-        alert("Zapisz najpierw zadanie, aby móc zmieniać status jego podzadań!");
-        return;
-    }
-
-    const nextDoneState = !isCurrentlyDone;
-    const token = localStorage.getItem("token");
-
-    const endpointUrl = parentTaskId 
-        ? `http://localhost:8000/api/subtasks/${taskId}/toggle-complete`
-        : `http://localhost:8000/api/tasks/${taskId}/toggle-complete`;
-
-    try {
-        const response = await fetch(endpointUrl, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
-            },
-            body: JSON.stringify({ is_done: nextDoneState })
-        });
-
-        if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.detail || `Server status ${response.status}`);
+    const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTaskId = null) => {
+        if (typeof taskId === 'string' && taskId.startsWith('temp-')) {
+            setErrorMessage("Save the task first to change subtasks status!");
+            return;
         }
 
-        const data = await response.json();
+        const nextDoneState = !isCurrentlyDone;
+        const token = localStorage.getItem("token");
 
-        setColumns(prevColumns => (prevColumns || []).map(col => {
-            if (col.id !== columnId) return col;
+        const endpointUrl = parentTaskId 
+            ? `http://localhost:8000/api/subtasks/${taskId}/toggle-complete`
+            : `http://localhost:8000/api/tasks/${taskId}/toggle-complete`;
 
-            return {
-                ...col,
-                tasks: (col.tasks || []).map(t => {
-                    if (parentTaskId && t.id === parentTaskId) {
-                        const updatedSubtasks = (t.subtasks || []).map(st => {
-                            const currentSubId = st.db_id || st.id;
+        try {
+            const response = await fetch(endpointUrl, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ is_done: nextDoneState })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.detail || `Server status ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            setColumns(prevColumns => (prevColumns || []).map(col => {
+                if (col.id !== columnId) return col;
+
+                return {
+                    ...col,
+                    tasks: (col.tasks || []).map(t => {
+                        if (parentTaskId && t.id === parentTaskId) {
+                            const updatedSubtasks = (t.subtasks || []).map(st => {
+                                const currentSubId = st.db_id || st.id;
+                                
+                                if (String(currentSubId) === String(taskId)) {
+                                    return {
+                                        ...st,
+                                        is_done: nextDoneState,
+                                        isCompleted: nextDoneState,
+                                        progress_prec: nextDoneState ? 100 : 0
+                                    };
+                                }
+                                return st;
+                            });
+
+                            const completedCount = updatedSubtasks.filter(st => st.is_done || st.progress_prec === 100).length;
+                            const calculatedProgress = updatedSubtasks.length > 0 
+                                ? Math.round((completedCount / updatedSubtasks.length) * 100) 
+                                : t.progress;
+
+                            return {
+                                ...t,
+                                subtasks: updatedSubtasks,
+                                progress: calculatedProgress,
+                                progress_prec: calculatedProgress
+                            };
+                        }
+
+                        if (!parentTaskId && t.id === taskId) {
+                            const serverSubtasks = data.subtasks || [];
                             
-                            if (String(currentSubId) === String(taskId)) {
-                                return {
-                                    ...st,
-                                    is_done: nextDoneState,
-                                    isCompleted: nextDoneState,
-                                    progress_prec: nextDoneState ? 100 : 0
-                                };
-                            }
-                            return st;
-                        });
+                            const updatedSubtasks = (t.subtasks || []).map(existingSub => {
+                                const match = serverSubtasks.find(s => s.id === existingSub.id);
+                                if (match) {
+                                    return {
+                                        ...existingSub,
+                                        is_done: match.is_done,
+                                        isCompleted: match.is_done,
+                                        progress_prec: match.progress_prec
+                                    };
+                                }
+                                return existingSub;
+                            });
 
-                        const completedCount = updatedSubtasks.filter(st => st.is_done || st.progress_prec === 100).length;
-                        const calculatedProgress = updatedSubtasks.length > 0 
-                            ? Math.round((completedCount / updatedSubtasks.length) * 100) 
-                            : t.progress;
+                            return {
+                                ...t,
+                                progress: data.progress_prec,
+                                progress_prec: data.progress_prec,
+                                subtasks: updatedSubtasks
+                            };
+                        }
 
-                        return {
-                            ...t,
-                            subtasks: updatedSubtasks,
-                            progress: calculatedProgress,
-                            progress_prec: calculatedProgress
-                        };
-                    }
+                        return t;
+                    })
+                };
+            }));
 
-                    if (!parentTaskId && t.id === taskId) {
-                        const serverSubtasks = data.subtasks || [];
-                        
-                        const updatedSubtasks = (t.subtasks || []).map(existingSub => {
-                            const match = serverSubtasks.find(s => s.id === existingSub.id);
-                            if (match) {
-                                return {
-                                    ...existingSub,
-                                    is_done: match.is_done,
-                                    isCompleted: match.is_done,
-                                    progress_prec: match.progress_prec
-                                };
-                            }
-                            return existingSub;
-                        });
-
-                        return {
-                            ...t,
-                            progress: data.progress_prec,
-                            progress_prec: data.progress_prec,
-                            subtasks: updatedSubtasks
-                        };
-                    }
-
-                    return t;
-                })
-            };
-        }));
-
-    } catch (error) {
-        console.error("Error toggling completion:", error);
-        alert(`Problem with server connection: ${error.message}`);
-    }
-};
+        } catch (error) {
+            console.error("Error toggling completion:", error);
+            setErrorMessage(`Problem with server connection: ${error.message}`);
+        }
+    };
 
     const renderMainContent = () => {
         if (isLoading) {
@@ -610,9 +715,9 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
                 setActiveTaskDropdown={setActiveTaskDropdown}
                 onOpenAddTaskModal={openAddTaskModal}
                 onOpenEditTaskModal={(colId, task) => openEditModal('task', task, colId)}
-                onDeleteList={handleDeleteList}
+                onDeleteList={(colId) => setConfirmDeleteList({ isOpen: true, columnId: colId })}
                 onRenameListModal={(column) => setRenameListModal({ isOpen: true, columnId: column.id, name: column.name })}
-                onDeleteTask={handleDeleteTask}
+                onDeleteTask={(colId, taskId) => setConfirmDeleteTask({ isOpen: true, columnId: colId, taskId })}
                 onToggleTaskComplete={(colId, taskId, isDone) => handleToggleAnyTask(colId, taskId, isDone, null)}
                 onOpenAddListModal={() => setIsListModalOpen(true)}
             />
@@ -630,18 +735,16 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
                 onToggleView={handleToggleViewMode} 
                 showSettings={true} 
                 onEditProject={() => openEditModal('project')} 
-                onDeleteProject={handleDeleteProject} 
+                onDeleteProject={() => setConfirmDeleteProject(true)} 
                 onAddList={() => setIsListModalOpen(true)}
-                onShowDetails={() => setIsDetailsModalOpen(true)} // 3. PODŁĄCZENIE AKCJI "SHOW DETAILS"
+                onShowDetails={() => setIsDetailsModalOpen(true)}
             />
 
             <Modal 
                 isOpen={modalForm.isOpen} 
                 onClose={closeModal} 
                 title={
-                    modalForm.type === 'project' 
-                        ? "Edit Project" 
-                        : (modalForm.isEdit ? "Edit Task" : "Create New Task")
+                    modalForm.type === 'project' ? "Edit Project" : (modalForm.isEdit ? "Edit Task" : "Create New Task")
                 } 
                 formId="universalForm"
                 submitLabel={modalForm.isEdit ? "Save Changes" : "Create"}
@@ -660,9 +763,11 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
                         handlePriorityChange={handlePriorityChange} 
                         handleCreateTask={handleSaveForm} 
                         setTaskForm={setModalForm} 
+                        projectMembers={projectMembers}
                     />
                 )}
             </Modal>
+            
             <Modal 
                 isOpen={isDetailsModalOpen} 
                 onClose={() => setIsDetailsModalOpen(false)} 
@@ -672,7 +777,7 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
             >
                 <ProjectDetailsModal 
                     name={projectName}
-                    members={["only you"]}
+                    members={projectMembers}
                     tags={[]}
                     description={projectDesc}
                     githubRepo={projectGithubRepo}
@@ -690,6 +795,39 @@ const handleToggleAnyTask = async (columnId, taskId, isCurrentlyDone, parentTask
                     <input type="text" placeholder="List name..." value={renameListModal.name} onChange={(e) => setRenameListModal(prev => ({ ...prev, name: e.target.value }))} autoFocus className="modalInput" required/>
                 </form>
             </Modal>
+
+            <ConfirmationModal
+                isOpen={confirmDeleteProject}
+                onClose={() => setConfirmDeleteProject(false)}
+                onConfirm={confirmExecuteDeleteProject}
+                title="Delete Project"
+                message="Are you sure you want to delete this project? This action cannot be undone."
+                submitLabel="Delete Project"
+                isDanger={true}
+                formId="confirmDeleteProjectForm"
+            />
+
+            <ConfirmationModal
+                isOpen={confirmDeleteList.isOpen}
+                onClose={() => setConfirmDeleteList({ isOpen: false, columnId: null })}
+                onConfirm={confirmExecuteDeleteList}
+                title="Delete List"
+                message="Are you sure you want to delete this list and all of its tasks?"
+                submitLabel="Delete List"
+                isDanger={true}
+                formId="confirmDeleteListForm"
+            />
+
+            <ConfirmationModal
+                isOpen={confirmDeleteTask.isOpen}
+                onClose={() => setConfirmDeleteTask({ isOpen: false, columnId: null, taskId: null })}
+                onConfirm={confirmExecuteDeleteTask}
+                title="Delete Task"
+                message="Are you sure you want to delete this task?"
+                submitLabel="Delete Task"
+                isDanger={true}
+                formId="confirmDeleteTaskForm"
+            />
         </DragDropContext>
     );
 }

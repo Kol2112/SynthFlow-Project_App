@@ -3,7 +3,7 @@
 
     .prorityDot {
         transition: all 0.2s ease;
-        background-color: #8B949E; /* Dopasuj do koloru tekstu na karcie */
+        background-color: #8B949E;
         border-radius: 50%;
         transition: background-color 0.2s ease;
     }

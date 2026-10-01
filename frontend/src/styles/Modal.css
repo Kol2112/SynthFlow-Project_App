@@ -1,7 +1,8 @@
-#modal{
+#modal {
     position: relative;
     z-index: 9999;
 }
+
 .modalOverlay {
     position: fixed;
     top: 0;
@@ -14,73 +15,89 @@
     justify-content: center;
     align-items: center;
     z-index: 2000;
-}   
+}
+
 .modalWindow {
     display: flex;
     flex-direction: column;
     justify-content: center;
     background-color: #161B22;
     border-radius: 30px;
-    box-shadow: 8px 8px 5px rgba(0,0,0,0.5);
+    box-shadow: 8px 8px 5px rgba(0, 0, 0, 0.5);
     border: 1px solid #30363D;
     overflow-y: auto;
     box-sizing: border-box;
-}
 
-@media (max-width: 480px) {
-    .modalWindow {
+    @media (max-width: 480px) {
         width: 95vw;
         border-radius: 20px;
     }
-}
-.modalBody{
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-}
-.modalTitle{
-    padding: 2rem;
-    color: #E6EDF3;
-    font-family: 'JetBrains Mono', monospace;
-    text-align: center;
-    font-weight:normal;
-}
-.controlButton{
-    display: flex;
-    justify-content: space-evenly;
-    width: 100%;
-    .closeButton, .createButton{
-        background: rgba(139, 148, 158, 0.3);
-        box-shadow: 8px 8px 5px rgba(0,0,0,0.5);
-        width: auto;
-        height: 2.5rem;
-        margin: 2rem;
-        padding: 0 1rem;
-        border: none;
-        border-radius: 36px;
-        font-family: 'JetBrains Mono', monospace;
-        color: #E6EDF3;
-        font-size: medium;
-        cursor: pointer;
-    }
-    .closeButton:hover{
-        background: rgba(139, 148, 158, 0.4);
-        box-shadow: 6px 6px 5px rgba(0,0,0,0.5);
-    }
-    .createButton{
-        background: linear-gradient(90deg,rgba(210, 188, 253, 1) 14%, rgba(125, 112, 151, 1) 68%);
-    }
-    .createButton:hover{
-        background: linear-gradient(90deg,rgb(198, 170, 255) 14%, rgb(115, 100, 145) 68%);
+
+    .modalTitle {
+        padding: 2rem;
+        color: var(--text-primary);
+        font-family: var(--font-main);
+        text-align: center;
+        font-weight: normal;
     }
 
-    @media(max-width:400px){
+    .modalBody {
+        display: flex;
         flex-direction: column;
+        justify-content: center;
         align-items: center;
-        .closeButton, .createButton{
-            width: 70%;
-            margin: 1rem 0.5rem;
+
+        .controlButton {
+            display: flex;
+            justify-content: space-evenly;
+            width: 100%;
+
+            .closeButton, .createButton {
+                background: var(--input-bg);
+                box-shadow: 8px 8px 5px rgba(0, 0, 0, 0.5);
+                width: auto;
+                height: 2.5rem;
+                margin: 2rem;
+                padding: 0 1rem;
+                border: none;
+                border-radius: 36px;
+                font-family: var(--font-main);
+                color: var(--text-primary);
+                font-size: medium;
+                cursor: pointer;
+            }
+
+            .closeButton:hover {
+                background: rgba(139, 148, 158, 0.4);
+                box-shadow: 6px 6px 5px rgba(0, 0, 0, 0.5);
+            }
+
+            .createButton {
+                background: linear-gradient(90deg, rgba(210, 188, 253, 1) 14%, rgba(125, 112, 151, 1) 68%);
+
+                &:hover {
+                    background: linear-gradient(90deg, rgb(198, 170, 255) 14%, rgb(115, 100, 145) 68%);
+                }
+            }
+
+            .dangerButton {
+                background: var(--color-danger) !important;
+                color: #ffffff !important;
+
+                &:hover {
+                    background: #b82a28 !important;
+                }
+            }
+
+            @media (max-width: 400px) {
+                flex-direction: column;
+                align-items: center;
+
+                .closeButton, .createButton {
+                    width: 70%;
+                    margin: 1rem 0.5rem;
+                }
+            }
         }
     }
 }
@@ -89,27 +106,27 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-}
 
-.formGroup {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 1.2rem;
-}
+    .formGroup {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 1.2rem;
+    }
 
-.formRowInline {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-}
+    .formRowInline {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+    }
 
-.halfWidth {
-    width: 50%;
+    .halfWidth {
+        width: 50%;
+    }
 }
 
 .modalLabel {
-    color: #8B949E;
-    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+    font-family: var(--font-main);
     font-size: 0.85rem;
     margin-bottom: 0.5rem;
 }
@@ -122,36 +139,38 @@
     border: 1px solid #30363D;
     border-radius: 12px;
     padding: 0.8rem;
-    color: #E6EDF3;
-    font-family: 'Roboto', sans-serif;
+    color: var(--text-primary);
+    font-family: var(--font-secondary);
     font-size: 0.95rem;
     resize: none;
     outline: none;
+
+    &:focus {
+        border-color: #D2BCFD;
+    }
 }
 
-.modalTextArea:focus, .modalSelect:focus, .modalInputDate:focus {
-    border-color: #D2BCFD;
-}
-#renameListForm{
+#renameListForm {
     display: flex;
     width: 100%;
 }
+
 .modalInput {
     width: 80%;
     background: #090B0E;
     border: 1px solid #30363D;
     border-radius: 8px;
     padding: 0.8rem 1rem;
-    color: #E6EDF3;
-    font-family: 'Roboto', sans-serif;
+    color: var(--text-primary);
+    font-family: var(--font-secondary);
     font-size: 0.95rem;
     margin: auto;
     outline: none;
     transition: border-color 0.2s ease;
-}
 
-.modalInput:focus {
-    border-color: #646870;
+    &:focus {
+        border-color: #646870;
+    }
 }
 
 .modalSelect {
@@ -161,11 +180,15 @@
     border: 1px solid #30363D;
     border-radius: 12px;
     padding: 0.8rem;
-    color: #E6EDF3;
-    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    font-family: var(--font-main);
     font-size: 0.9rem;
     outline: none;
     cursor: pointer;
+
+    &:focus {
+        border-color: #D2BCFD;
+    }
 }
 
 .modalInputDate {
@@ -175,18 +198,79 @@
     border: 1px solid #30363D;
     border-radius: 12px;
     padding: 0.75rem;
-    color: #E6EDF3;
-    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    font-family: var(--font-main);
     font-size: 0.9rem;
     outline: none;
+
+    &:focus {
+        border-color: #D2BCFD;
+    }
 }
 
-/* Dopisek do Modal.css */
-.controlButton .dangerButton {
-    background: #da3633 !important;
-    color: #ffffff !important;
-}
+.confirmModalContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem 2rem;
+    text-align: center;
 
-.controlButton .dangerButton:hover {
-    background: #b82a28 !important;
+    .confirmModalMessage {
+        color: var(--text-primary);
+        font-family: var(--font-secondary);
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+    }
+
+    .confirmModalActions {
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+        width: 100%;
+
+        .confirmButton {
+            background: linear-gradient(90deg, rgba(210, 188, 253, 1) 14%, rgba(125, 112, 151, 1) 68%);
+            box-shadow: 8px 8px 5px rgba(0, 0, 0, 0.5);
+            height: 2.5rem;
+            padding: 0 1.5rem;
+            border: none;
+            border-radius: 36px;
+            font-family: var(--font-main);
+            color: var(--text-primary);
+            font-size: medium;
+            cursor: pointer;
+            transition: background 0.2s ease;
+
+            &:hover {
+                background: linear-gradient(90deg, rgb(198, 170, 255) 14%, rgb(115, 100, 145) 68%);
+            }
+
+            &.danger {
+                background: var(--color-danger);
+
+                &:hover {
+                    background: #b82a28;
+                }
+            }
+        }
+
+        .cancelButton {
+            background: var(--input-bg);
+            box-shadow: 8px 8px 5px rgba(0, 0, 0, 0.5);
+            height: 2.5rem;
+            padding: 0 1.5rem;
+            border: none;
+            border-radius: 36px;
+            font-family: var(--font-main);
+            color: var(--text-primary);
+            font-size: medium;
+            cursor: pointer;
+            transition: background 0.2s ease;
+
+            &:hover {
+                background: rgba(139, 148, 158, 0.4);
+            }
+        }
+    }
 }

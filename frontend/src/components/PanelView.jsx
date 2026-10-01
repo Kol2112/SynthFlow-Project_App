@@ -27,16 +27,14 @@ export default function PanelView({ headerTitle, projectKey, content, showViewTo
                     
                     <div className="headerActionsControls">
                         {showViewToggle && (
-                            <button className="headerViewToggleBtn" aria-label="Toggle view design" onClick={onToggleView} title ={viewMode === "Kanban" ? "Switch to list viwe" : "Switch to kanban view"}>
+                            <button className="headerViewToggleBtn" aria-label="Toggle view design" onClick={onToggleView} title={viewMode === "Kanban" ? "Switch to list view" : "Switch to kanban view"}>
                                 {viewMode === "kanban" ? <IoListOutline /> : <IoGridOutline/>}
                             </button>
                         )}
                         
                         {showSettings && (
                             <div className="settingsDropdownContainer" ref={settingsRef}>
-                                <button 
-                                    className="headerSettingsBtn" 
-                                    aria-label="Project settings" 
+                                <button className="headerSettingsBtn" aria-label="Project settings" 
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setIsSettingsOpen(!isSettingsOpen);

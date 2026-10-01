@@ -1,4 +1,5 @@
 import Modal from "../Modal.jsx";
+import '../../styles/share.css';
 
 export default function ConfirmationModal({
     isOpen,
@@ -26,15 +27,8 @@ export default function ConfirmationModal({
             submitLabel={submitLabel}
             isDanger={isDanger}
         >
-            <form id={formId} onSubmit={handleSubmit} style={{ width: '100%', padding: '0 1.5rem' }}>
-                <p style={{
-                    color: '#C9D1D9',
-                    fontSize: '1rem',
-                    textAlign: 'center',
-                    margin: '0 0 1.5rem 0',
-                    lineHeight: '1.5',
-                    fontFamily: 'JetBrains Mono, monospace'
-                }}>
+            <form id={formId} onSubmit={handleSubmit} className="confirmationForm">
+                <p className="confirmationMessage">
                     {message}
                 </p>
             </form>

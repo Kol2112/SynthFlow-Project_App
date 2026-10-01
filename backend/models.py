@@ -1,8 +1,15 @@
 import enum
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum, Text, Table
 from sqlalchemy.orm import relationship
 from database import Base
+
+task_assignees = Table(
+    "task_assignees",
+    Base.metadata,
+    Column("task_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+)
 
 # Statusy zaproszeń/oczekiwań do projektów
 class InvitationStatus(str, enum.Enum):
@@ -34,6 +41,7 @@ class ProjectMember(Base):
 
     status = Column(Enum(InvitationStatus), default=InvitationStatus.PENDING, nullable=False)
     joined_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_accessed_at = Column(DateTime, nullable=True)
 
 # Tabela użytkownika
 class User(Base):
@@ -54,7 +62,8 @@ class User(Base):
 
     owned_projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
     projects = relationship("Project", secondary="project_members", back_populates="members")
-    assigned_tasks = relationship("Task", back_populates="assignee")
+    assigned_tasks = relationship("Task", secondary=task_assignees, back_populates="assignees")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
 # Tabela projektu
 class Project(Base):
@@ -88,8 +97,7 @@ class TaskColumn(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
 
     project = relationship("Project", back_populates="columns")
-    tasks = relationship("Task", back_populates="column", cascade="all, delete-orphan")
-
+    tasks = relationship("Task", back_populates="column", order_by="Task.position", cascade="all, delete-orphan")
 
 # Tabela zadań
 class Task(Base):
@@ -105,15 +113,13 @@ class Task(Base):
 
     saved_progress = Column(Integer, default=0, nullable=False)
     progress_prec = Column(Integer, default=0, nullable=False)
-
+    position = Column(Integer, default=0, nullable=False)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     column_id = Column(Integer, ForeignKey("task_columns.id", ondelete="CASCADE"), nullable=True)
-    assignee_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     project = relationship("Project", back_populates="tasks")
     column = relationship("TaskColumn", back_populates="tasks")
-    assignee = relationship("User", back_populates="assigned_tasks")
-    
+    assignees = relationship("User", secondary=task_assignees, back_populates="assigned_tasks")
     subtasks = relationship("Subtask", back_populates="task", cascade="all, delete-orphan")
 
     @property
@@ -157,3 +163,19 @@ class PendingChange(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     data_json = Column(Text, nullable=False)
     expires_at = Column(DateTime, nullable=False)
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    type = Column(String, nullable=False) # np. 'PROJECT_INVITE', 'TASK_ASSIGNED'
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True)
+
+    user = relationship("User", back_populates="notifications")

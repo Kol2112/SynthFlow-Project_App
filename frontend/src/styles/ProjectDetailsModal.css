@@ -1,9 +1,18 @@
+.projectDetailsWrapper {
+    display: flex;
+    gap: 1.2rem;
+    align-items: flex-start;
+    position: relative;
+    width: 100%;
+}
+
 .projectDetailsContainer {
     display: flex;
     flex-direction: column;
     gap: 1.2rem;
-    width: 100%;
-    max-width: 600px; /* Szerszy modal w widoku desktopowym */
+    flex: 1;
+    min-width: 320px;
+    max-width: 600px;
     box-sizing: border-box;
     color: #E6EDF3;
     font-family: 'Roboto', sans-serif;
@@ -36,20 +45,42 @@
     word-break: break-word;
 }
 
+.projectDetailsAvatarsRow {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.membersMenuBtn {
+    background-color: #21262D;
+    color: #C9D1D9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid #161b22; 
+    box-sizing: border-box;
+    margin-left: -10px;
+    position: relative;
+    transition: transform 0.2s ease, z-index 0.2s ease;
+
+    &:hover, &.active {
+        background-color: #30363D;
+        color: #58A6FF;
+        border-color: #58A6FF;
+        z-index: 10;
+        transform: translateY(-2px);
+    }
+}
+
 .projectDetailsList {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
-}
-
-.projectDetailsMemberBadge {
-    background-color: #21262D;
-    border: 1px solid #30363D;
-    color: #C9D1D9;
-    padding: 0.4rem 0.8rem;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    font-family: 'JetBrains Mono', monospace;
 }
 
 .projectDetailsTagBadge {
@@ -84,8 +115,122 @@
     word-break: break-word;
 }
 
-/* Responsywność mobilna */
+.allMembersSidePanel {
+    width: 230px;
+    background-color: #090B0E;
+    border: 1px solid #30363D;
+    border-radius: 16px;
+    padding: 1rem;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+.allMembersTitle {
+    margin: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    color: #8B949E;
+    font-weight: 600;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #21262D;
+}
+
+.allMembersList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.allMembersItem {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    .memberName {
+        color: #C9D1D9;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.85rem;
+        word-break: break-word;
+    }
+}
+
+.projectDetailsGithubLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #58a6ff;
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.webhookRowContainer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.webhookInput {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #30363d;
+    background-color: #0d1117;
+    color: #c9d1d9;
+    font-size: 0.85rem;
+}
+
+.webhookCopyBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    background-color: #21262d;
+    color: #f0f6fc;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+        background-color: #30363d;
+    }
+
+    &.copied {
+        background-color: #238636;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
 @media (max-width: 640px) {
+    .projectDetailsWrapper {
+        flex-direction: column;
+    }
+
+    .allMembersSidePanel {
+        width: 100%;
+    }
+
     .projectDetailsContainer {
         padding: 0;
         max-width: 100%;
@@ -97,64 +242,4 @@
         padding: 0.7rem;
         font-size: 0.9rem;
     }
-
-    .projectDetailsMemberBadge,
-    .projectDetailsTagBadge {
-        padding: 0.3rem 0.6rem;
-        font-size: 0.78rem;
-    }
-}
-
-.projectDetailsContainer {
-  /* GitHub Repo Link */
-  .projectDetailsGithubLink {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #58a6ff;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  /* GitHub Webhook Row */
-  .webhookRowContainer {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    .webhookInput {
-      flex: 1;
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: 1px solid #30363d;
-      background-color: #0d1117;
-      color: #c9d1d9;
-      font-size: 0.85rem;
-    }
-
-    .webhookCopyBtn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: none;
-      background-color: #21262d;
-      color: #f0f6fc;
-      cursor: pointer;
-      font-size: 0.85rem;
-      transition: background-color 0.2s ease;
-
-      &:hover {
-        background-color: #30363d;
-      }
-
-      &.copied {
-        background-color: #238636;
-      }
-    }
-  }
 }

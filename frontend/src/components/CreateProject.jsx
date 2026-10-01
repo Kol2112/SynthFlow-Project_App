@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/CreateProject.css';
+import UserPicker from './utils/UserPicker.jsx';
 
 export default function CreateProject({ onClose, projectForm, handleSubmit: externalSubmit, handleInputChange: externalInputChange, handlePriorityChange: externalPriorityChange }) {
     const [formData, setFormData] = useState({
@@ -10,22 +11,24 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
         deadline: '',
         priority: 'Low',
         tags: '',
-        githubRepo: ''
+        githubRepo: '',
+        members: []
     });
     const [error, setError] = useState('');
 
-    // Inicjalizacja stanu formData z przekazanego projectForm
     useEffect(() => {
         if (projectForm) {
+            const initialMembers = projectForm.members || projectForm.project_members || projectForm.users || [];
+            
             setFormData({
                 name: projectForm.name || '',
-                // Upewnijmy się, że obsłużymy zarówno camelCase jak i snake_case z API
                 projectKey: projectForm.projectKey || projectForm.project_key || '',
                 desc: projectForm.desc || '',
                 deadline: projectForm.deadline ? projectForm.deadline.split('T')[0] : '',
                 priority: projectForm.priority || 'Low',
                 tags: projectForm.tags || '',
-                githubRepo: projectForm.githubRepo || projectForm.github_repo || ''
+                githubRepo: projectForm.githubRepo || projectForm.github_repo || '',
+                members: initialMembers
             });
         }
     }, [projectForm]);
@@ -48,6 +51,40 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
         setFormData(prev => ({
             ...prev,
             priority: newPriority
+        }));
+    };
+
+    const handleInviteUser = async (user) => {
+        if (projectForm && projectForm.id) {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.post(`http://localhost:8000/api/projects/${projectForm.id}/invitations`, 
+                    { email: user.email }, 
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+            } catch (err) {
+                setError(err.response?.data?.detail || "Error sending invitation");
+                return;
+            }
+        }
+        setFormData(prev => ({ ...prev, members: [...prev.members, user] }));
+    };
+
+    const handleRemoveMember = async (userToRemove) => {
+        if (projectForm && projectForm.id && userToRemove.id) {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.delete(`http://localhost:8000/api/projects/${projectForm.id}/members/${userToRemove.id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+            } catch (err) {
+                setError(err.response?.data?.detail || "Could not remove member");
+                return;
+            }
+        }
+        setFormData(prev => ({
+            ...prev,
+            members: prev.members.filter(m => m.email !== userToRemove.email)
         }));
     };
 
@@ -75,21 +112,17 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
             project_key: formData.projectKey,
             desc: formData.desc || null,
             priority: formData.priority,
-            deadline: formData.deadline ? new Date(formData.deadline).toISOString() : null,
+            deadline: formData.deadline ? formData.deadline : null,
             github_repo: formData.githubRepo || null
         };
 
         try {
-            const response = isEdit 
-                ? await axios.put(url, payload, { headers: { Authorization: `Bearer ${token}` } })
-                : await axios.post(url, payload, { headers: { Authorization: `Bearer ${token}` } });
-
-            console.log(isEdit ? 'Project updated:' : 'Project created:', response.data);
+            const response = isEdit ? await axios.put(url, payload, { headers: { Authorization: `Bearer ${token}` } }): await axios.post(url, payload, { headers: { Authorization: `Bearer ${token}` } });
 
             if (onClose) onClose();
             window.location.reload();
         } catch (err) {
-            setError(err.response?.data?.detail || "Something gone wrong");
+            setError(err.response?.data?.detail || "Something went wrong");
         }
     };
 
@@ -118,6 +151,13 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
                     required 
                 />
                 
+                <UserPicker 
+                    label="Invite members"
+                    members={formData.members || []}
+                    onAddMember={handleInviteUser}
+                    onRemoveMember={handleRemoveMember}
+                />
+
                 <label>Details</label>
                 <textarea 
                     name="desc" 

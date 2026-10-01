@@ -1,11 +1,12 @@
 import { useState } from "react";
 import axios from "axios";
 import ConfirmationModal from "./utils/ConfirmationModal";
+import ErrorMsg from "./utils/ErrorMsg";
 import "../styles/Account.css";
 
 export default function Settings() {
     const [projectKey, setProjectKey] = useState("");
-    const [statusMsg, setStatusMsg] = useState({ text: "", type: "" });
+    const [statusMsg, setStatusMsg] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const [confirmModal, setConfirmModal] = useState({
@@ -20,11 +21,15 @@ export default function Settings() {
     const handleReqJoinProject = (e) => {
         e.preventDefault();
         if (!projectKey.trim()) {
-            setStatusMsg({ text: "Please enter a valid project key.", type: "error" });
+            setStatusMsg({ 
+                text: "Please enter a valid project key.", 
+                type: "error", 
+                id: `err-${Date.now()}` 
+            });
             return;
         }
 
-        setStatusMsg({ text: "", type: "" });
+        setStatusMsg(null);
 
         setConfirmModal({
             isOpen: true,
@@ -54,11 +59,19 @@ export default function Settings() {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            setStatusMsg({ text: response.data.message, type: "success" });
+            setStatusMsg({ 
+                text: response.data.message, 
+                type: "success", 
+                id: `msg-${Date.now()}` 
+            });
             setProjectKey("");
         } catch (err) {
             const detail = err.response?.data?.detail || "Failed to send join request.";
-            setStatusMsg({ text: detail, type: "error" });
+            setStatusMsg({ 
+                text: detail, 
+                type: "error", 
+                id: `err-${Date.now()}` 
+            });
         } finally {
             setLoading(false);
         }
@@ -66,6 +79,8 @@ export default function Settings() {
 
     return (
         <div className="accountContainer">
+            <ErrorMsg key={statusMsg?.id} message={statusMsg} />
+
             <h2 className="accountTitle">Settings</h2>
 
             <div className="accountSection">
@@ -83,12 +98,6 @@ export default function Settings() {
                             required
                         />
                     </div>
-
-                    {statusMsg.text && (
-                        <p className={statusMsg.type === "error" ? "msgError" : "msgSuccess"}>
-                            {statusMsg.text}
-                        </p>
-                    )}
 
                     <button type="submit" className="btnSubmit" disabled={loading}>
                         {loading ? "Sending..." : "Request Access"}

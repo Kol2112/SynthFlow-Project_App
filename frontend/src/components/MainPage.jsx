@@ -1,13 +1,16 @@
-import Navbar from './Navbar.jsx';
-import Sidebar from './Sidebar.jsx';
-import Modal from './Modal.jsx';
-import '../styles/MainPage.css';
-import CreateProject from './CreateProject.jsx';
-import ErrorMsg from './utils/ErrorMsg.jsx';
-import FABADDButton from './utils/FABAddButton.jsx';
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+
+import Navbar from './Navbar.jsx';
+import Sidebar from './Sidebar.jsx';
+import Modal from './Modal.jsx';
+import CreateProject from './CreateProject.jsx';
+import ErrorMsg from './utils/ErrorMsg.jsx';
+import FABADDButton from './utils/FABAddButton.jsx';
+
+import '../styles/MainPage.css';
+
 import useAutoRefreshAuth from './utils/useAutoRefreshAuth.js';
 
 export default function MainPage(){
@@ -26,7 +29,8 @@ export default function MainPage(){
         projectKey: '',
         desc: '',
         deadline: '',
-        priority: 'Low'
+        priority: 'Low',
+        members: []
     });
 
     useAutoRefreshAuth();
@@ -79,7 +83,8 @@ export default function MainPage(){
             desc: project.desc || '',
             deadline: project.deadline ? project.deadline.split('T')[0] : '',
             priority: project.priority || 'Medium',
-            githubRepo: project.github_repo || project.githubRepo || ''
+            githubRepo: project.github_repo || project.githubRepo || '',
+            members: project.members || []
         });
         setIsOpen(true);
     };
@@ -115,6 +120,8 @@ export default function MainPage(){
                 setIsOpen(false);
             } catch (err) {
                 console.error("Error updating project:", err);
+                const msg = err.response?.data?.detail || "Failed to update project";
+                {errorMessage && <ErrorMsg errorMsg={errorMessage} />}
             }
         } else {
             const payload = {
@@ -135,6 +142,8 @@ export default function MainPage(){
                 setIsOpen(false);
             } catch (err) {
                 console.error("Error creating project:", err);
+                const msg = err.response?.data?.detail || "Failed to process project request";
+                setErrorMessage(msg);
             }
         }
     };
@@ -155,27 +164,15 @@ export default function MainPage(){
             <main>
                 <Sidebar isOpen={handleOpenCreateModal} />
 
-                <Modal 
-                    isOpen={isOpen} 
-                    onClose={() => setIsOpen(false)} 
-                    title={modalForm.isEdit ? 'Edit Project' : 'Create Project'}
-                    formId="universalForm"
-                    submitLabel={modalForm.isEdit ? 'Save Changes' : 'Create'}
+                <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title={modalForm.isEdit ? 'Edit Project' : 'Create Project'} formId="universalForm" submitLabel={modalForm.isEdit ? 'Save Changes' : 'Create'}
                 > 
-                    <CreateProject 
-                        projectForm={modalForm.isEdit ? modalForm : null}
-                        handleInputChange={handleInputChange}
-                        handlePriorityChange={handlePriorityChange}
-                        handleSubmit={handleSaveProject}
-                        onClose={() => setIsOpen(false)}
+                    <CreateProject projectForm={modalForm.isEdit ? modalForm : null} handleInputChange={handleInputChange} handlePriorityChange={handlePriorityChange} handleSubmit={handleSaveProject}onClose={() => setIsOpen(false)}
                     />
                 </Modal>
 
                 <div className="dynamicPageContent">
                     <Outlet context={{ projects, setProjects, onEditProject: handleOpenEditModal, setErrorMessage }} />
                 </div>
-
-                <FABADDButton isOpen={handleOpenCreateModal} />
             </main>
         </>
     );

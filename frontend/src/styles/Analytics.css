@@ -1,0 +1,121 @@
+.analyticsContainer {
+    padding: 2rem;
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+
+    .analyticsTitle {
+        font-size: 1.8rem;
+        font-family: var(--font-main);
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .statsGrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+
+        .statCard {
+            background-color: #161B22;
+            border: 1px solid #30363D;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+
+            h3 {
+                font-size: 0.9rem;
+                color: var(--text-secondary);
+                margin-bottom: 0.5rem;
+            }
+
+            .statValue {
+                font-size: 2.2rem;
+                font-weight: bold;
+                color: #58A6FF;
+                margin: 0;
+            }
+        }
+    }
+
+    .analyticsDetailsGrid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 2rem;
+
+        .analyticsCard {
+            background-color: #161B22;
+            border: 1px solid #30363D;
+            border-radius: 8px;
+            padding: 1.5rem;
+
+            h2 {
+                font-size: 1.2rem;
+                color: var(--text-primary);
+                margin-bottom: 1.2rem;
+            }
+
+            .priorityList {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 0.8rem;
+
+                .priorityItem {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 0.8rem 1rem;
+                    border-radius: 6px;
+                    background-color: #0D1117;
+                    border: 1px solid #21262D;
+
+                    &.low { border-left: 4px solid var(--color-success); }
+                    &.medium { border-left: 4px solid #D29922; }
+                    &.high { border-left: 4px solid var(--color-danger); }
+                    &.critical { border-left: 4px solid #A371F7; }
+                }
+            }
+
+            .projectProgressList {
+                display: flex;
+                flex-direction: column;
+                gap: 1.2rem;
+
+                .projectProgressItem {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.4rem;
+
+                    .projectProgressHeader {
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 0.9rem;
+                    }
+
+                    .progressBarBg {
+                        width: 100%;
+                        height: 8px;
+                        background-color: #21262D;
+                        border-radius: 4px;
+                        overflow: hidden;
+
+                        .progressBarFill {
+                            height: 100%;
+                            background-color: #238636;
+                            transition: width 0.4s ease;
+                        }
+                    }
+                }
+            }
+
+            .emptyText {
+                color: var(--text-secondary);
+                font-size: 0.9rem;
+            }
+        }
+    }
+}

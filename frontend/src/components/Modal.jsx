@@ -8,7 +8,7 @@ export default function Modal({
     children, 
     formId = "universalForm", 
     submitLabel = "Create",
-    isDanger = false // Add missing prop with default value
+    isDanger = false
 }) {
     if (!isOpen) return null;
 
