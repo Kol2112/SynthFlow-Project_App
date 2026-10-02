@@ -61,11 +61,11 @@ activation_tokens = {}
 mail_config = ConnectionConfig(
     MAIL_USERNAME=os.getenv("MAIL_USERNAME", ""),
     MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
-    MAIL_FROM=os.getenv("MAIL_FROM", "test@synthflow.local"),
-    MAIL_PORT=int(os.getenv("MAIL_PORT", 2525)),
-    MAIL_SERVER=os.getenv("MAIL_SERVER", "sandbox.smtp.mailtrap.io"),
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
+    MAIL_FROM=os.getenv("MAIL_FROM", "twój-zweryfikowany-mail@domena.com"),
+    MAIL_PORT=int(os.getenv("MAIL_PORT", 465)),
+    MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp-relay.brevo.com"),
+    MAIL_STARTTLS=False,
+    MAIL_SSL_TLS=True,
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True
 )
