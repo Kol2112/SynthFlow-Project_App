@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 import os, re, json
 from dotenv import load_dotenv
@@ -19,6 +19,10 @@ from services import notification as notif_service
 from database import get_db
 from auth import get_password_hash, verify_password, create_access_token, get_current_user, refresh_access_token
 
+def get_utc_now() -> datetime:
+    """Zwraca aktualny czas UTC bez strefy czasowej (dla zgodności z bazą danych)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 scheduler = BackgroundScheduler()
 
 @asynccontextmanager
@@ -30,10 +34,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 pending_changes = {}
+
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
+
 origins = [
     "http://localhost:5173",
     "http://localhost:3000",
-    "https://synthflowapp.vercel.app",
+    FRONTEND_URL,
 ]
 
 app.add_middleware(
@@ -45,8 +56,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
 reset_tokens = {}
 activation_tokens = {}
 
@@ -62,9 +71,8 @@ mail_config = ConnectionConfig(
     VALIDATE_CERTS=True
 )
 
-
 def send_activation_email_background(email: str, token: str, background_tasks: BackgroundTasks):
-    activation_link = f"http://localhost:8000/api/auth/activate?token={token}"
+    activation_link = f"{BACKEND_URL}/api/auth/activate?token={token}"
     html_content = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
             <h2 style="color: #24292e;">Welcome to SynthFlow!</h2>
@@ -92,8 +100,8 @@ def send_project_invitation_email_background(
     token: str, 
     background_tasks: BackgroundTasks
 ):
-    accept_link = f"http://localhost:8000/api/projects/confirm-invitation?token={token}&action=accept"
-    reject_link = f"http://localhost:8000/api/projects/confirm-invitation?token={token}&action=reject"
+    accept_link = f"{BACKEND_URL}/api/projects/confirm-invitation?token={token}&action=accept"
+    reject_link = f"{BACKEND_URL}/api/projects/confirm-invitation?token={token}&action=reject"
     
     html_content = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 8px;">
@@ -116,7 +124,7 @@ def send_project_invitation_email_background(
     background_tasks.add_task(fm.send_message, message)
 
 def send_confirmation_email_background(email: str, token: str, action_type: str, background_tasks: BackgroundTasks):
-    confirm_link = f"http://localhost:5173/confirm-change?token={token}"
+    confirm_link = f"{FRONTEND_URL}/confirm-change?token={token}"
     action_text = "email address change" if action_type == "email" else "password change"
     
     html_content = f"""
@@ -154,7 +162,7 @@ def send_security_notice_email_background(email: str, action_type: str, backgrou
     background_tasks.add_task(fm.send_message, message)
 
 def send_reset_email_background(email: str, token: str, background_tasks: BackgroundTasks):
-    reset_link = f"http://localhost:5173/recovery?token={token}"
+    reset_link = f"{FRONTEND_URL}/recovery?token={token}"
     html_content = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 6px;">
             <h2 style="color: #24292e;">SynthFlow - Password Reset</h2>
@@ -176,8 +184,8 @@ def send_reset_email_background(email: str, token: str, background_tasks: Backgr
     background_tasks.add_task(fm.send_message, message)
 
 def send_join_request_email_background(owner_email: str, requester_name: str, requester_email: str, project_name: str, token: str, background_tasks: BackgroundTasks):
-    accept_link = f"http://localhost:8000/api/projects/confirm-join-request-link?token={token}&action=accept"
-    reject_link = f"http://localhost:8000/api/projects/confirm-join-request-link?token={token}&action=reject"
+    accept_link = f"{BACKEND_URL}/api/projects/confirm-join-request-link?token={token}&action=accept"
+    reject_link = f"{BACKEND_URL}/api/projects/confirm-join-request-link?token={token}&action=reject"
     
     html_content = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 8px;">
@@ -234,7 +242,7 @@ def update_project_progress(project_id: int, db: Session):
 @app.post("/api/auth/register", status_code=status.HTTP_201_CREATED)
 def register_user(user_data: schemas.UserRegister, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):    
     if user_data.birth_date:
-        today = datetime.utcnow().date()
+        today = get_utc_now().date()
         age = today.year - user_data.birth_date.year - ((today.month, today.day) < (user_data.birth_date.month, user_data.birth_date.day))
         if age < 13:
             raise HTTPException(
@@ -325,13 +333,13 @@ def reset_password(data: schemas.ResetPasswordRequest, db: Session = Depends(get
 def activate_account(token: str, db: Session = Depends(get_db)):
     if token not in activation_tokens:
         return RedirectResponse(
-            url="http://localhost:5173/login?error=Invalid+or+expired+activation+token."
+            url=f"{FRONTEND_URL}/login?error=Invalid+or+expired+activation+token."
         )
 
     user = db.query(models.User).filter(models.User.email == activation_tokens[token]).first()
     if not user:
         return RedirectResponse(
-            url="http://localhost:5173/login?error=User+not+found."
+            url=f"{FRONTEND_URL}/login?error=User+not+found."
         )
 
     user.is_active = True
@@ -339,14 +347,13 @@ def activate_account(token: str, db: Session = Depends(get_db)):
     del activation_tokens[token]
 
     return RedirectResponse(
-        url="http://localhost:5173/login?msg=Account+activated+successfully!+You+can+now+log+in."
+        url=f"{FRONTEND_URL}/login?msg=Account+activated+successfully!+You+can+now+log+in."
     )
 
 # --- PROJECTS & COLUMNS ENDPOINTS ---
 
 @app.post("/api/projects", response_model=schemas.ProjectResponse, status_code=status.HTTP_201_CREATED)
-def create_new_project(project_data: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
-):
+def create_new_project(project_data: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     existing_key = db.query(models.Project).filter(
         models.Project.project_key == project_data.project_key
     ).first()
@@ -411,7 +418,7 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
     
     member = db.query(models.ProjectMember).filter(models.ProjectMember.project_id == project.id, models.ProjectMember.user_id == current_user.id).first()
     if member:
-        member.last_accessed_at = datetime.utcnow()
+        member.last_accessed_at = get_utc_now()
         db.commit()
     columns = db.query(models.TaskColumn).filter(models.TaskColumn.project_id == project.id).order_by(models.TaskColumn.position).all()
     accepted_members = db.query(models.User).join(models.ProjectMember).filter(
@@ -555,7 +562,6 @@ def create_task(project_id: int, column_id: int, task_data: schemas.TaskCreate, 
     db.commit()
     db.refresh(new_task)
     
-    # Assignment Notification
     if task_data.assignee_ids:
         notif_service.update_task_assignees(new_task, task_data.assignee_ids, current_user, db)
 
@@ -599,7 +605,6 @@ def update_project(
     else:
         project.github_repo = None
     
-    # Check for project deadline change
     if project_data.deadline:
         new_deadline = datetime.combine(project_data.deadline, datetime.min.time())
         if project.deadline != new_deadline:
@@ -675,7 +680,6 @@ def update_task(project_id: int, column_id: int, task_id: int, task_data: schema
     task.deadline = datetime.combine(task_data.deadline, datetime.min.time()) if task_data.deadline else None
     task.start_date = datetime.combine(task_data.start_date, datetime.min.time()) if task_data.start_date else None
     
-    # Task Assignee Notification
     new_assignee_ids = task_data.assignee_ids or []
     notif_service.update_task_assignees(task, new_assignee_ids, current_user, db)
 
@@ -939,7 +943,7 @@ def request_email_change(
         type="email",
         user_id=current_user.id,
         data_json=json.dumps({"new_email": email_data.new_email}),
-        expires_at=datetime.utcnow() + timedelta(minutes=10)
+        expires_at=get_utc_now() + timedelta(minutes=10)
     )
     db.add(pending_entry)
     db.commit()
@@ -965,7 +969,7 @@ def request_password_change(
         type="password",
         user_id=current_user.id,
         data_json=json.dumps({"new_password_hash": get_password_hash(password_data.new_password)}),
-        expires_at=datetime.utcnow() + timedelta(minutes=10)
+        expires_at=get_utc_now() + timedelta(minutes=10)
     )
     db.add(pending_entry)
     db.commit()
@@ -981,7 +985,7 @@ def confirm_change(token: str, db: Session = Depends(get_db)):
     if not change_request:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token.")
 
-    if datetime.utcnow() > change_request.expires_at:
+    if get_utc_now() > change_request.expires_at:
         db.delete(change_request)
         db.commit()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Confirmation link has expired (10 minutes limit)")
@@ -1029,7 +1033,7 @@ def request_join_project(request_data: schemas.ProjectJoinRequest, background_ta
     for req in existing_requests:
         data = json.loads(req.data_json)
         if data.get("project_id") == project.id:
-            if datetime.utcnow() <= req.expires_at:
+            if get_utc_now() <= req.expires_at:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST, 
                     detail="You have already submitted a join request for this project. Please wait for the owner's decision or request expiration"
@@ -1040,7 +1044,7 @@ def request_join_project(request_data: schemas.ProjectJoinRequest, background_ta
     db.commit()
 
     token = str(uuid.uuid4())
-    expires_at = datetime.utcnow() + timedelta(hours=24)
+    expires_at = get_utc_now() + timedelta(hours=24)
     
     pending_entry = models.PendingChange(
         token=token,
@@ -1081,7 +1085,7 @@ def request_join_project(request_data: schemas.ProjectJoinRequest, background_ta
 @app.get("/api/projects/confirm-join-request-link")
 def confirm_join_request_link(token: str, action: str, db: Session = Depends(get_db)):
     if action not in ["accept", "reject"]:
-        return RedirectResponse(url="http://localhost:5173/login?error=Invalid+action")
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error=Invalid+action")
 
     change_request = db.query(models.PendingChange).filter(
         models.PendingChange.token == token,
@@ -1089,12 +1093,12 @@ def confirm_join_request_link(token: str, action: str, db: Session = Depends(get
     ).first()
 
     if not change_request:
-        return RedirectResponse(url="http://localhost:5173/login?error=Invalid+or+already+used+link")
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error=Invalid+or+already+used+link")
 
-    if datetime.utcnow() > change_request.expires_at:
+    if get_utc_now() > change_request.expires_at:
         db.delete(change_request)
         db.commit()
-        return RedirectResponse(url="http://localhost:5173/login?error=Join+request+has+expired+(24h+limit)")
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error=Join+request+has+expired+(24h+limit)")
 
     data = json.loads(change_request.data_json)
     project_id = data.get("project_id")
@@ -1123,9 +1127,9 @@ def confirm_join_request_link(token: str, action: str, db: Session = Depends(get
     db.delete(change_request)
     db.commit()
 
-    return RedirectResponse(url=f"http://localhost:5173/login?msg={msg}")
+    return RedirectResponse(url=f"{FRONTEND_URL}/login?msg={msg}")
 
-# --- PROJECT MEMBERS ---
+
 
 @app.get("/api/users/search", response_model=schemas.UserResponse)
 def search_user_by_email(email: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -1177,12 +1181,11 @@ def invite_member_to_project(
         type="project_invite",
         user_id=user_to_add.id,
         data_json=json.dumps({"project_id": project_id}),
-        expires_at=datetime.utcnow() + timedelta(days=7)
+        expires_at=get_utc_now() + timedelta(days=7)
     )
     db.add(pending_entry)
     db.commit()
 
-    # Send in-app notification
     notif_service.send_project_invite(project, user_to_add, current_user, db)
 
     inviter_name = f"{current_user.name or ''} {current_user.surname or ''}".strip() or current_user.email
@@ -1200,7 +1203,7 @@ def invite_member_to_project(
 @app.get("/api/projects/confirm-invitation")
 def confirm_invitation(token: str, action: str, db: Session = Depends(get_db)):
     if action not in ["accept", "reject"]:
-        return RedirectResponse(url="http://localhost:5173/login?error=Invalid+action")
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error=Invalid+action")
 
     change_request = db.query(models.PendingChange).filter(
         models.PendingChange.token == token,
@@ -1208,12 +1211,12 @@ def confirm_invitation(token: str, action: str, db: Session = Depends(get_db)):
     ).first()
 
     if not change_request:
-        return RedirectResponse(url="http://localhost:5173/login?error=Invitation+is+invalid+or+has+expired")
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error=Invitation+is+invalid+or+has+expired")
 
-    if datetime.utcnow() > change_request.expires_at:
+    if get_utc_now() > change_request.expires_at:
         db.delete(change_request)
         db.commit()
-        return RedirectResponse(url="http://localhost:5173/login?error=Invitation+has+expired")
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error=Invitation+has+expired")
 
     data = json.loads(change_request.data_json)
     project_id = data.get("project_id")
@@ -1242,7 +1245,7 @@ def confirm_invitation(token: str, action: str, db: Session = Depends(get_db)):
     db.delete(change_request)
     db.commit()
 
-    return RedirectResponse(url=f"http://localhost:5173/login?msg={msg}")
+    return RedirectResponse(url=f"{FRONTEND_URL}/login?msg={msg}")
 
 @app.delete("/api/projects/{project_id}/members/{user_id}")
 def remove_member_from_project(project_id: int, user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
