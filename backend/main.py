@@ -15,8 +15,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from services.scheduler import check_task_deadlines
 from services import notification as notif_service
-
-from database import get_db
+from database import get_db, engine
 from auth import get_password_hash, verify_password, create_access_token, get_current_user, refresh_access_token
 
 def get_utc_now() -> datetime:
@@ -31,7 +30,7 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     yield
     scheduler.shutdown()
-
+models.Base.metadata.create_all(bind=engine)
 app = FastAPI(lifespan=lifespan)
 pending_changes = {}
 
