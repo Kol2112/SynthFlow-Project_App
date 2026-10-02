@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { authService } from './utils/api.js';
-import { extractErrorMessage } from './utils/helperFunctions.js';
-import '../styles/share.css';
+import { authService } from './api.js';
+import { extractErrorMessage } from './helperFunctions.js';
+import '../../styles/share.css';
 
 export default function ConfirmChange() {
     const [searchParams] = useSearchParams();

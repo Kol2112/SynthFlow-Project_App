@@ -5,11 +5,10 @@ import DashboardHome from "./components/utils/DashboardHome.jsx"
 import AllProjects from "./components/AllProjects.jsx"
 import RecoveryPage from "./components/RecoveryPage.jsx"
 import CreateAccount from "./components/CreateAccount.jsx"
-// USAUNIĘTO: import ActivationPage from './components/ActivationPage';
 import ProjectDetailsPage from "./components/ProjectDetailsPage.jsx";
 import Account from "./components/Account.jsx"
 import Settings from "./components/Settings.jsx";
-import ConfirmChange from "./components/utils/ConfirmChange.jsx"
+import ConfirmChange from './components/utils/ConfirmChange.jsx';
 import Analytics from "./components/Analytics.jsx";
 import { Route, Routes, Navigate } from "react-router-dom"
 
@@ -46,7 +45,6 @@ function App() {
 
             <Route path='/register' element={<PublicOnlyRoute><CreateAccount /></PublicOnlyRoute>} />
             <Route path='/recovery' element={<PublicOnlyRoute><RecoveryPage /></PublicOnlyRoute>} />
-            {/* USUNIĘTO: <Route path="/activate" element={<PublicOnlyRoute><ActivationPage /></PublicOnlyRoute>} /> */}
             
             <Route path="/confirm-change" element={<ConfirmChange />} />
             
