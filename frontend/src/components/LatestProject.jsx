@@ -2,31 +2,27 @@ import { useEffect, useState } from 'react';
 import '../styles/LatestProject.css';
 import ProjectBoard from "./ProjectBoard.jsx";
 import { useOutletContext } from 'react-router-dom';
+import { projectService } from './utils/api.js';
+import { extractErrorMessage } from './utils/helperFunctions.js';
 
 export default function LatestProject() {
     const { projects, setProjects, onEditProject, setErrorMessage } = useOutletContext();
     const [recentProjects, setRecentProjects] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // 1. Pierwsze pobranie dedykowanej listy ostatnich projektów z backendu
     useEffect(() => {
         const fetchRecentProjects = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch('http://localhost:8000/api/projects/recent', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    setRecentProjects(data);
-                } else {
-                    const errorData = await response.json();
-                    if (setErrorMessage) setErrorMessage({ text: errorData.detail || "Failed to load recent projects", type: 'error' });
-                }
+                const data = await projectService.getRecentProjects();
+                setRecentProjects(data);
             } catch (error) {
                 console.error("Error fetching recent projects:", error);
-                if (setErrorMessage) setErrorMessage({ text: "Connection error", type: 'error' });
+                if (setErrorMessage) {
+                    setErrorMessage({ 
+                        text: extractErrorMessage(error, "Failed to load recent projects"), 
+                        type: 'error' 
+                    });
+                }
             } finally {
                 setLoading(false);
             }
@@ -35,8 +31,6 @@ export default function LatestProject() {
         fetchRecentProjects();
     }, [setErrorMessage]);
 
-    // 2. KLUCZOWY KROK: Gdy zapiszesz edycję w modalu, zmieni się główny stan `projects` w kontekście.
-    // Ten useEffect automatycznie podmieni zaktualizowane dane w `recentProjects` w czasie rzeczywistym!
     useEffect(() => {
         if (projects && projects.length > 0) {
             setRecentProjects(prevRecent => 

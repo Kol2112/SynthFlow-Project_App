@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
 import ErrorMsg from './utils/ErrorMsg.jsx';
-import { validatePassword } from './utils/helperFunctions.js';
+import { validatePassword, extractErrorMessage } from './utils/helperFunctions.js';
+import { authService } from './utils/api.js';
 import fullLogo from '../assets/fullLogo.webp';
 import '../styles/Login.css';
 import '../styles/share.css';
@@ -21,17 +21,11 @@ export default function RecoveryPage() {
         setMsg(null);
 
         try {
-            await axios.post('http://localhost:8000/api/auth/forgot-password', { 
-                email: email
-            });
+            await authService.forgotPassword(email);
             setMsg({ text: "If the account exists, a password reset link has been sent to your email.", type: 'success' });
             setEmail('');
         } catch (err) {
-            if (err.response && err.response.data && err.response.data.detail) {
-                setMsg({ text: err.response.data.detail, type: 'error' });
-            } else {
-                setMsg({ text: "Connection with server timeout", type: 'error' });
-            }
+            setMsg({ text: extractErrorMessage(err, "Connection with server timeout"), type: 'error' });
         }
     };
 
@@ -46,21 +40,14 @@ export default function RecoveryPage() {
         }
 
         try {
-            await axios.post('http://localhost:8000/api/auth/reset-password', {
-                token: token,
-                new_password: newPassword
-            });
+            await authService.resetPassword(token, newPassword);
             setMsg({ text: "Password successfully changed! Redirecting to login...", type: 'success' });
             
             setTimeout(() => {
                 navigate('/');
             }, 2500);
         } catch (err) {
-            if (err.response?.data?.detail) {
-                setMsg({ text: err.response.data.detail, type: 'error' });
-            } else {
-                setMsg({ text: "Invalid or expired token.", type: 'error' });
-            }
+            setMsg({ text: extractErrorMessage(err, "Invalid or expired token."), type: 'error' });
         }
     };
 

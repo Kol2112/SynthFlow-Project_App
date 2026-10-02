@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import { IoPersonAdd } from 'react-icons/io5';
+import { userService } from './api.js';
 import RenderAvatars from './RenderAvatars.jsx';
 import ErrorMsg from './ErrorMsg.jsx';
 import '../../styles/UserPicker.css';
@@ -36,11 +36,8 @@ export default function UserPicker({
         }
 
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get(`http://localhost:8000/api/users/search?email=${encodeURIComponent(query)}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setFoundUser(res.data);
+            const data = await userService.searchUsers(query);
+            setFoundUser(data);
             setNotification(null);
         } catch (err) {
             setFoundUser(null);

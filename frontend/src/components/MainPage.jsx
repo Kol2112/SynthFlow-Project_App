@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 import Navbar from './Navbar.jsx';
 import Sidebar from './Sidebar.jsx';
 import Modal from './Modal.jsx';
 import CreateProject from './CreateProject.jsx';
 import ErrorMsg from './utils/ErrorMsg.jsx';
-import FABADDButton from './utils/FABAddButton.jsx';
 
 import '../styles/MainPage.css';
 
 import useAutoRefreshAuth from './utils/useAutoRefreshAuth.js';
+import { projectService } from './utils/api.js';
+import { extractErrorMessage } from './utils/helperFunctions.js';
 
 export default function MainPage(){
     const [isOpen, setIsOpen] = useState(false);
@@ -37,22 +37,21 @@ export default function MainPage(){
     useEffect(() => {
         const fetchProjects = async () => {
             const token = localStorage.getItem('token');
-            if(!token){
-                navigate('/', {replace: true});
+            if (!token) {
+                navigate('/', { replace: true });
                 return;
             }
             try {
-                const response = await axios.get('http://localhost:8000/api/projects', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setProjects(response.data);
+                const data = await projectService.getProjects();
+                setProjects(data);
             } catch (err) {
                 console.error('Error occurred downloading projects:', err);
-                if(err.response && (err.response.status === 401 || err.response.status === 403 )){
+                if (err.response && (err.response.status === 401 || err.response.status === 403)) {
                     localStorage.removeItem('token');
-                    navigate('/', {replace: true});
-                }else{
-                    setErrorMessage("Failed to load projects")
+                    sessionStorage.removeItem('token');
+                    navigate('/', { replace: true });
+                } else {
+                    setErrorMessage(extractErrorMessage(err, "Failed to load projects"));
                 }
             } finally {
                 setLoading(false);
@@ -100,7 +99,6 @@ export default function MainPage(){
 
     const handleSaveProject = async (e) => {
         if (e && e.preventDefault) e.preventDefault();
-        const token = localStorage.getItem('token');
 
         if (modalForm.isEdit) {
             const payload = {
@@ -112,16 +110,13 @@ export default function MainPage(){
             };
 
             try {
-                const response = await axios.put(`http://localhost:8000/api/projects/${modalForm.id}`, payload, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                setProjects(prev => prev.map(p => p.id === modalForm.id ? { ...p, ...response.data } : p));
+                const updatedData = await projectService.updateProject(modalForm.id, payload);
+                setProjects(prev => prev.map(p => p.id === modalForm.id ? { ...p, ...updatedData } : p));
                 setIsOpen(false);
             } catch (err) {
                 console.error("Error updating project:", err);
-                const msg = err.response?.data?.detail || "Failed to update project";
-                {errorMessage && <ErrorMsg errorMsg={errorMessage} />}
+                const msg = extractErrorMessage(err, "Failed to update project");
+                setErrorMessage(msg);
             }
         } else {
             const payload = {
@@ -134,15 +129,12 @@ export default function MainPage(){
             };
 
             try {
-                const response = await axios.post('http://localhost:8000/api/projects', payload, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-
-                setProjects(prev => [...prev, response.data]);
+                const newData = await projectService.createProject(payload);
+                setProjects(prev => [...prev, newData]);
                 setIsOpen(false);
             } catch (err) {
                 console.error("Error creating project:", err);
-                const msg = err.response?.data?.detail || "Failed to process project request";
+                const msg = extractErrorMessage(err, "Failed to process project request");
                 setErrorMessage(msg);
             }
         }
@@ -166,7 +158,7 @@ export default function MainPage(){
 
                 <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title={modalForm.isEdit ? 'Edit Project' : 'Create Project'} formId="universalForm" submitLabel={modalForm.isEdit ? 'Save Changes' : 'Create'}
                 > 
-                    <CreateProject projectForm={modalForm.isEdit ? modalForm : null} handleInputChange={handleInputChange} handlePriorityChange={handlePriorityChange} handleSubmit={handleSaveProject}onClose={() => setIsOpen(false)}
+                    <CreateProject projectForm={modalForm.isEdit ? modalForm : null} handleInputChange={handleInputChange} handlePriorityChange={handlePriorityChange} handleSubmit={handleSaveProject} onClose={() => setIsOpen(false)}
                     />
                 </Modal>
 

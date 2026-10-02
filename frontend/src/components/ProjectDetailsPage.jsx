@@ -3,19 +3,20 @@ import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import { DragDropContext } from '@hello-pangea/dnd';
 
 import Modal from './Modal.jsx';
-import ConfirmationModal from './utils/ConfirmationModal.jsx'
+import ConfirmationModal from './utils/ConfirmationModal.jsx';
 import PanelView from './PanelView.jsx';
 import CreateTask from './CreateTask.jsx';
 import CreateProject from './CreateProject.jsx';
 import ProjectDetailsModal from './ProjectDetailsModal.jsx';
 import ProjectKanbanView from './ProjectKanbanView.jsx';
 import ProjectListView from './ProjectListView.jsx';
-import { useDeleteProject, useDeleteTask, useDeleteColumn } from "./utils/helperFunctions.js";
+import { useDeleteProject, useDeleteTask, useDeleteColumn, extractErrorMessage } from "./utils/helperFunctions.js";
+import { projectService, columnService, taskService, subtaskService, userService } from './utils/api.js';
 import '../styles/ProjectDetailsPage.css';
 
 export default function ProjectDetailsPage() {
     const { projectKey: urlProjectKey } = useParams();
-    const { setErrorMessage } = useOutletContext();
+    const { setErrorMessage, setProjects } = useOutletContext();
 
     const [isOwner, setIsOwner] = useState(false);
     const [projectOwnerId, setProjectOwnerId] = useState(null);
@@ -76,22 +77,8 @@ export default function ProjectDetailsPage() {
                 setIsLoading(true);
                 setErrorMessage("");
                 setColumns([]);
-                const token = localStorage.getItem("token");
-                const response = await fetch(`http://localhost:8000/api/projects/by-key/${urlProjectKey}`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
 
-                if (!response.ok) {
-                    if(response.status === 404){
-                        setErrorMessage("This project doesn't exist");
-                        navigate('/dashboard', {replace: true});
-                    }else{
-                        setErrorMessage("An error occurred while loading data");
-                    }
-                    return;
-                }
-
-                const data = await response.json();
+                const data = await projectService.getProjectByKey(urlProjectKey);
 
                 if (data && data.id) {
                     setProjectId(data.id);
@@ -103,6 +90,7 @@ export default function ProjectDetailsPage() {
                     setProjectDeadline(data.deadline || "");
                     setProjectGithubRepo(data.github_repo || data.githubRepo || "");
                     setProjectMembers(data.members || data.project_members || data.users || []);
+                    
                     const normalizedColumns = (data.columns || []).map(col => ({
                         ...col,
                         tasks: (col.tasks || []).map(task => {
@@ -128,23 +116,22 @@ export default function ProjectDetailsPage() {
 
                     setColumns(normalizedColumns);
 
-                    if(normalizedColumns.length === 0){
+                    if (normalizedColumns.length === 0) {
                         localStorage.removeItem('project_view_mode');
                         setViewMode('kanban');
-                    }else{
+                    } else {
                         const savedViewMode = localStorage.getItem('project_view_mode');
-                        if(savedViewMode){
-                            setViewMode(savedViewMode);
-                        }else{
-                            setViewMode('kanban');
-                        }
+                        setViewMode(savedViewMode || 'kanban');
                     }
-                } else {
-                    throw new Error("Invalid data structure received from server");
                 }
             } catch (error) {
                 console.error("Error fetching columns:", error);
-                setErrorMessage("Failed to connect to the server");
+                if (error.response?.status === 404) {
+                    setErrorMessage("This project doesn't exist");
+                    navigate('/dashboard', { replace: true });
+                } else {
+                    setErrorMessage(extractErrorMessage(error, "Failed to connect to the server"));
+                }
             } finally {
                 setIsLoading(false);
             }
@@ -157,13 +144,11 @@ export default function ProjectDetailsPage() {
 
     useEffect(() => {
         const fetchMe = async () => {
-            const token = localStorage.getItem("token");
-            const res = await fetch("http://localhost:8000/api/users/me", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if(res.ok) {
-                const userData = await res.json();
+            try {
+                const userData = await userService.getMe();
                 setCurrentUserId(userData.id);
+            } catch (error) {
+                console.error("Error fetching user details:", error);
             }
         };
         fetchMe();
@@ -279,115 +264,88 @@ export default function ProjectDetailsPage() {
 
     const handleSaveForm = async (e) => {
         if (e && e.preventDefault) e.preventDefault();
-        const token = localStorage.getItem("token");
 
         const assigneeIds = (modalForm.assignees || []).map(u => u.id || u.user_id).filter(Boolean);
 
-       if (modalForm.type === "project") {
-        const payload = {
-            name: modalForm.name,
-            desc: modalForm.desc,
-            priority: modalForm.priority,
-            start_date: modalForm.startDate || null,
-            deadline: modalForm.deadline || null,
-            github_repo: modalForm.githubRepo || null
-        };
-
-        try {
-            const response = await fetch(`http://localhost:8000/api/projects/${projectId}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) throw new Error("Failed to update project");
-
-            const updatedProject = await response.json();
-            
-            setProjectName(updatedProject.name);
-            setProjectsDesc(updatedProject.desc || "");
-            setProjectPriority(updatedProject.priority);
-            setProjectDeadline(updatedProject.deadline ? updatedProject.deadline.split("T")[0] : "");
-            setProjectGithubRepo(updatedProject.github_repo || "");
-
-            // KROK KLUCZOWY: Aktualizacja listy projektów w stanie aplikacji
-            if (setProjects) {
-                setProjects(prevProjects => 
-                    prevProjects.map(p => p.id === updatedProject.id ? updatedProject : p)
-                );
-            }
-
-            closeModal();
-        } catch (error) {
-            console.error("Error updating project: ", error);
-            setErrorMessage("Failed to update project");
-        }
-    } else {
-            if (!modalForm.name || !modalForm.name.trim() || !projectId || !modalForm.columnId) return;
-
-            const url = modalForm.isEdit
-                ? `http://localhost:8000/api/projects/${projectId}/columns/${modalForm.columnId}/tasks/${modalForm.id}` 
-                : `http://localhost:8000/api/projects/${projectId}/columns/${modalForm.columnId}/tasks`;
-            const method = modalForm.isEdit ? "PUT" : "POST";
+        if (modalForm.type === "project") {
+            const payload = {
+                name: modalForm.name,
+                desc: modalForm.desc,
+                priority: modalForm.priority,
+                start_date: modalForm.startDate || null,
+                deadline: modalForm.deadline || null,
+                github_repo: modalForm.githubRepo || null
+            };
 
             try {
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        name: modalForm.name,
-                        desc: modalForm.desc,
-                        priority: modalForm.priority,
-                        start_date: modalForm.startDate || null,
-                        deadline: modalForm.deadline || null,
-                        assignee_id: assigneeIds[0] || null,
-                        assignee_ids: assigneeIds,
-                        assignees: modalForm.assignees || [],
-                        subtasks: modalForm.subtasks || []
-                    })
-                });
+                const updatedProject = await projectService.updateProject(projectId, payload);
 
-                if (!response.ok) throw new Error("Failed to save task");
+                setProjectName(updatedProject.name);
+                setProjectsDesc(updatedProject.desc || "");
+                setProjectPriority(updatedProject.priority);
+                setProjectDeadline(updatedProject.deadline ? updatedProject.deadline.split("T")[0] : "");
+                setProjectGithubRepo(updatedProject.github_repo || "");
 
-                const savedProjectDetails = await fetch(`http://localhost:8000/api/projects/by-key/${urlProjectKey}`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-
-                if (savedProjectDetails.ok) {
-                    const data = await savedProjectDetails.json();
-                    const normalizedColumns = (data.columns || []).map(col => ({
-                        ...col,
-                        tasks: (col.tasks || []).map(task => {
-                            const taskProgress = task.progress_prec ?? task.progress ?? 0;
-                            return {
-                                ...task,
-                                progress: taskProgress,
-                                progress_prec: taskProgress,
-                                subtasks: (task.subtasks || []).map(st => {
-                                    const stProgress = st.progress_prec ?? (st.is_done ? 100 : 0);
-                                    return {
-                                        ...st,
-                                        progress_prec: stProgress,
-                                        is_done: stProgress === 100,
-                                        isCompleted: stProgress === 100
-                                    };
-                                })
-                            };
-                        })
-                    }));
-                    setColumns(normalizedColumns);
+                if (setProjects) {
+                    setProjects(prevProjects => 
+                        prevProjects.map(p => p.id === updatedProject.id ? updatedProject : p)
+                    );
                 }
 
                 closeModal();
             } catch (error) {
+                console.error("Error updating project: ", error);
+                setErrorMessage(extractErrorMessage(error, "Failed to update project"));
+            }
+        } else {
+            if (!modalForm.name || !modalForm.name.trim() || !projectId || !modalForm.columnId) return;
+
+            const payload = {
+                name: modalForm.name,
+                desc: modalForm.desc,
+                priority: modalForm.priority,
+                start_date: modalForm.startDate || null,
+                deadline: modalForm.deadline || null,
+                assignee_id: assigneeIds[0] || null,
+                assignee_ids: assigneeIds,
+                assignees: modalForm.assignees || [],
+                subtasks: modalForm.subtasks || []
+            };
+
+            try {
+                if (modalForm.isEdit) {
+                    await taskService.updateTask(projectId, modalForm.columnId, modalForm.id, payload);
+                } else {
+                    await taskService.createTask(projectId, modalForm.columnId, payload);
+                }
+
+                const data = await projectService.getProjectByKey(urlProjectKey);
+                const normalizedColumns = (data.columns || []).map(col => ({
+                    ...col,
+                    tasks: (col.tasks || []).map(task => {
+                        const taskProgress = task.progress_prec ?? task.progress ?? 0;
+                        return {
+                            ...task,
+                            progress: taskProgress,
+                            progress_prec: taskProgress,
+                            subtasks: (task.subtasks || []).map(st => {
+                                const stProgress = st.progress_prec ?? (st.is_done ? 100 : 0);
+                                return {
+                                    ...st,
+                                    progress_prec: stProgress,
+                                    is_done: stProgress === 100,
+                                    isCompleted: stProgress === 100
+                                };
+                            })
+                        };
+                    })
+                }));
+                setColumns(normalizedColumns);
+
+                closeModal();
+            } catch (error) {
                 console.error("Error creating or updating task: ", error);
-                setErrorMessage("Failed to save task");
+                setErrorMessage(extractErrorMessage(error, "Failed to save task"));
             }
         }
     };
@@ -418,15 +376,7 @@ export default function ProjectDetailsPage() {
             setColumns(reorderedColumns);
 
             try {
-                const token = localStorage.getItem("token");
-                await fetch(`http://localhost:8000/api/projects/${projectId}/columns/reorder`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ column_ids: reorderedColumns.map(col => col.id) })
-                });
+                await projectService.reorderColumns(projectId, reorderedColumns.map(col => col.id));
             } catch (error) {
                 console.error("Error reordering columns:", error);
                 setErrorMessage("Could not update column order");
@@ -443,22 +393,12 @@ export default function ProjectDetailsPage() {
         const sourceTasks = Array.from(sourceCol.tasks);
         const [movedTask] = sourceTasks.splice(source.index, 1);
 
-        const token = localStorage.getItem("token");
-
         if (sourceColId === destColId) {
             sourceTasks.splice(destination.index, 0, movedTask);
             setColumns(columns.map(col => col.id === sourceColId ? { ...col, tasks: sourceTasks } : col));
 
             try {
-                const taskIds = sourceTasks.map(t => t.id);
-                await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${sourceColId}/tasks/reorder`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ task_ids: taskIds })
-                });
+                await columnService.reorderTasks(projectId, sourceColId, sourceTasks.map(t => t.id));
             } catch (error) {
                 console.error("Error reordering tasks:", error);
                 setErrorMessage("Could not update task positions");
@@ -474,20 +414,8 @@ export default function ProjectDetailsPage() {
             }));
 
             try {
-                await fetch(`http://localhost:8000/api/tasks/${movedTask.id}/move?column_id=${destColId}`, {
-                    method: "PUT",
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-
-                const destTaskIds = destTasks.map(t => t.id);
-                await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${destColId}/tasks/reorder`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ task_ids: destTaskIds })
-                });
+                await taskService.moveTask(movedTask.id, destColId);
+                await columnService.reorderTasks(projectId, destColId, destTasks.map(t => t.id));
             } catch (error) {
                 console.error("Error moving task:", error);
                 setErrorMessage("Could not update task position");
@@ -500,19 +428,7 @@ export default function ProjectDetailsPage() {
         if (!newListName.trim() || !projectId) return;
 
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`http://localhost:8000/api/projects/${projectId}/columns`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ name: newListName })
-            });
-
-            if (!response.ok) throw new Error("Failed to create column");
-
-            const createdColumn = await response.json();
+            const createdColumn = await columnService.createColumn(projectId, newListName);
             const formattedColumn = { ...createdColumn, tasks: [] };
 
             setColumns([...columns, formattedColumn]);
@@ -520,7 +436,7 @@ export default function ProjectDetailsPage() {
             setIsListModalOpen(false);
         } catch (error) {
             console.error("Error creating list on backend:", error);
-            setErrorMessage("Failed to create list");
+            setErrorMessage(extractErrorMessage(error, "Failed to create list"));
         }
     };
 
@@ -529,22 +445,12 @@ export default function ProjectDetailsPage() {
         if (!renameListModal.name.trim() || !projectId || !renameListModal.columnId) return;
 
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${renameListModal.columnId}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ name: renameListModal.name })
-            });
-            if (!response.ok) throw new Error("Failed to rename list");
-
+            await columnService.renameColumn(projectId, renameListModal.columnId, renameListModal.name);
             setColumns(columns.map(col => col.id === renameListModal.columnId ? { ...col, name: renameListModal.name } : col));
             setRenameListModal({ isOpen: false, columnId: null, name: "" });
         } catch (error) {
             console.error("Error renaming list:", error);
-            setErrorMessage("Failed to rename list");
+            setErrorMessage(extractErrorMessage(error, "Failed to rename list"));
         }
     };
 
@@ -558,7 +464,7 @@ export default function ProjectDetailsPage() {
             const remainingColumns = columns.filter(col => col.id !== columnId);
             setColumns(remainingColumns);
 
-            if(remainingColumns.length === 0){
+            if (remainingColumns.length === 0) {
                 localStorage.removeItem('project_view_mode');
                 setViewMode('kanban');
             }
@@ -598,28 +504,11 @@ export default function ProjectDetailsPage() {
         }
 
         const nextDoneState = !isCurrentlyDone;
-        const token = localStorage.getItem("token");
-
-        const endpointUrl = parentTaskId 
-            ? `http://localhost:8000/api/subtasks/${taskId}/toggle-complete`
-            : `http://localhost:8000/api/tasks/${taskId}/toggle-complete`;
 
         try {
-            const response = await fetch(endpointUrl, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ is_done: nextDoneState })
-            });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || `Server status ${response.status}`);
-            }
-
-            const data = await response.json();
+            const data = parentTaskId 
+                ? await subtaskService.toggleSubtaskComplete(taskId, nextDoneState)
+                : await taskService.toggleTaskComplete(taskId, nextDoneState);
 
             setColumns(prevColumns => (prevColumns || []).map(col => {
                 if (col.id !== columnId) return col;
@@ -686,7 +575,7 @@ export default function ProjectDetailsPage() {
 
         } catch (error) {
             console.error("Error toggling completion:", error);
-            setErrorMessage(`Problem with server connection: ${error.message}`);
+            setErrorMessage(extractErrorMessage(error, "Problem with server connection"));
         }
     };
 

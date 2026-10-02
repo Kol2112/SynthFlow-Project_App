@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { deleteProjectApi } from './api.js';
+import { deleteProjectApi, taskService, projectService } from './api.js';
+
 // --- Walidacja Hasła ---
 export function validatePassword(password) {
     if (!password) {
@@ -25,7 +26,7 @@ export function validatePassword(password) {
 
 // --- Walidacja Imienia / Nazwiska ---
 export function validateNameOrSurname(value, fieldName = "Field") {
-    if (!value) return { isValid: true, message: "" }; // Pole opcjonalne
+    if (!value) return { isValid: true, message: "" };
 
     if (value.trim().length < 2) {
         return { 
@@ -108,16 +109,13 @@ export function useDeleteProject() {
 export async function executeDeleteTask({ projectId, columnId, taskId }) {
     if (!projectId || !columnId || !taskId) return;
 
-    const token = localStorage.getItem("token");
-    const response = await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${columnId}/tasks/${taskId}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-    });
-
-    if (!response.ok) {
+    try {
+        await taskService.deleteTask(projectId, columnId, taskId);
+        return true;
+    } catch (error) {
+        console.error("Failed to delete task:", error);
         throw new Error("Failed to delete task");
     }
-    return true;
 }
 
 export function useDeleteTask() {
@@ -132,16 +130,13 @@ export function useDeleteTask() {
 export async function executeDeleteColumn({ projectId, columnId }) {
     if (!projectId || !columnId) return;
 
-    const token = localStorage.getItem("token");
-    const response = await fetch(`http://localhost:8000/api/projects/${projectId}/columns/${columnId}`, {
-        method: "DELETE",
-        headers: { "Authorization": `Bearer ${token}` }
-    });
-
-    if (!response.ok) {
+    try {
+        await projectService.deleteColumn(projectId, columnId);
+        return true;
+    } catch (error) {
+        console.error("Failed to delete column:", error);
         throw new Error("Failed to delete column");
     }
-    return true;
 }
 
 export function useDeleteColumn() {

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import { authService } from './utils/api.js';
+import { extractErrorMessage } from './utils/helperFunctions.js';
 
 export default function ActivationPage() {
     const [searchParams] = useSearchParams();
@@ -9,7 +10,8 @@ export default function ActivationPage() {
     
     const [status, setStatus] = useState('activating');
     const [msg, setMsg] = useState('Aktywuję Twoje konto, proszę czekać...');
-    const  hasRequested = useRef(false);
+    const hasRequested = useRef(false);
+
     useEffect(() => {
         if (!token) {
             setStatus('error');
@@ -17,18 +19,18 @@ export default function ActivationPage() {
             return;
         }
 
-        if(hasRequested.current) return;
+        if (hasRequested.current) return;
         hasRequested.current = true;
 
-        axios.post(`http://localhost:8000/api/auth/activate?token=${token}`)
-            .then(res => {
+        authService.activateAccount(token)
+            .then(data => {
                 setStatus('success');
-                setMsg(res.data.message || 'Twoje konto zostało pomyślnie aktywowane!');
+                setMsg(data.message || 'Twoje konto zostało pomyślnie aktywowane!');
                 setTimeout(() => navigate('/'), 3000);
             })
             .catch(err => {
                 setStatus('error');
-                setMsg(err.response?.data?.detail || 'Aktywacja nie powiodła się. Token mógł wygasnąć.');
+                setMsg(extractErrorMessage(err, 'Aktywacja nie powiodła się. Token mógł wygasnąć.'));
             });
     }, [token, navigate]);
 

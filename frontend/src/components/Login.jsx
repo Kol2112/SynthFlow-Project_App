@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 
-import { authService } from './utils/api';
+import { authService } from './utils/api.js';
+import { extractErrorMessage } from './utils/helperFunctions.js';
 import ErrorMsg from './utils/ErrorMsg.jsx';
 
 import '../styles/Login.css';
@@ -70,23 +71,11 @@ export default function Login() {
 
             navigate('/dashboard');
         } catch (err) {
-            if (err.response && err.response.data) {
-                let errorMessage = "Inserted login or password is incorrect!";
-                const detail = err.response.data.detail;
-
-                if (typeof detail === 'string') {
-                    errorMessage = detail;
-                } else if (Array.isArray(detail) && detail.length > 0) {
-                    errorMessage = detail[0].msg || "Invalid format of provided data!";
-                }
-
-                setNotification({ 
-                    text: errorMessage, 
-                    type: 'error' 
-                });
-            } else {
-                setNotification({ text: "Connection with server timeout", type: 'error' });
-            }
+            const errorMessage = extractErrorMessage(err, "Inserted login or password is incorrect!");
+            setNotification({ 
+                text: errorMessage, 
+                type: 'error' 
+            });
         }
     };
 

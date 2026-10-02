@@ -13,7 +13,7 @@ import '../styles/Login.css';
 import '../styles/share.css';
 
 import fullLogo from '../assets/fullLogo.webp';
-import { authService } from './utils/api';
+import { authService } from './utils/api.js';
 
 export default function CreateAccount() {
     const rawData = {

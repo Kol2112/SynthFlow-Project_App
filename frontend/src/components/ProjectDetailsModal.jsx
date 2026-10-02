@@ -7,7 +7,8 @@ export default function ProjectDetailsModal({ name, members = [], tags = [], des
     const [copied, setCopied] = useState(false);
     const [isMembersMenuOpen, setIsMembersMenuOpen] = useState(false);
 
-    const webhookUrl = "http://localhost:8000/api/webhooks/github";
+    const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+    const webhookUrl = `${apiBaseUrl}/webhooks/github`;
 
     const handleCopyWebhook = () => {
         navigator.clipboard.writeText(webhookUrl);

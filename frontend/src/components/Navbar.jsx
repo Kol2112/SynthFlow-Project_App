@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { MdOutlineAccountCircle, MdNotifications, MdCheck, MdClose } from "react-icons/md";
@@ -7,6 +6,8 @@ import ErrorMsg from './utils/ErrorMsg.jsx';
 import logo from '../assets/fullLogo.webp';
 import '../styles/Navbar.css';
 import '../styles/DropDown.css';
+import { userService, notificationService, projectService } from './utils/api.js';
+import { extractErrorMessage } from './utils/helperFunctions.js';
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
@@ -20,28 +21,20 @@ export default function Navbar() {
     const dropdownRef = useRef(null);
     const notificationRef = useRef(null);
     const navigate = useNavigate();
-    const API_URL = "http://localhost:8000/api";
-
-    const getAuthHeaders = () => {
-        const token = localStorage.getItem("token");
-        return token ? { headers: { Authorization: `Bearer ${token}` } } : null;
-    };
 
     const handleLogout = () => {
         localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
         setIsOpen(false);
         navigate('/', { replace: true });
     };
 
     const fetchUserAvatar = async () => {
-        const config = getAuthHeaders();
-        if (!config) return;
-
         try {
-            const response = await axios.get(`${API_URL}/users/me`, config);
-            setAvatarUrl(response.data.avatar_url || '');
+            const data = await userService.getMe();
+            setAvatarUrl(data.avatar_url || '');
             
-            const name = response.data.first_name || response.data.username || response.data.name || '';
+            const name = data.first_name || data.username || data.name || '';
             setUserName(name);
         } catch (error) {
             console.error("Navbar failed to fetch user avatar", error);
@@ -49,12 +42,8 @@ export default function Navbar() {
     };
 
     const fetchNotifications = async () => {
-        const config = getAuthHeaders();
-        if (!config) return;
-
         try {
-            const response = await axios.get(`${API_URL}/notifications`, config);
-            const data = response.data || [];
+            const data = await notificationService.getNotifications() || [];
             setNotifications(data);
             setUnreadCount(data.filter(n => !n.is_read).length);
         } catch (error) {
@@ -91,11 +80,8 @@ export default function Navbar() {
     }, []);
 
     const markAsRead = async (notificationId) => {
-        const config = getAuthHeaders();
-        if (!config) return;
-
         try {
-            await axios.patch(`${API_URL}/notifications/${notificationId}/read`, {}, config);
+            await notificationService.markAsRead(notificationId);
             setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n));
             setUnreadCount(prev => Math.max(0, prev - 1));
         } catch (error) {
@@ -104,11 +90,10 @@ export default function Navbar() {
     };
 
     const markAllAsRead = async () => {
-        const config = getAuthHeaders();
-        if (!config || unreadCount === 0) return;
+        if (unreadCount === 0) return;
 
         try {
-            await axios.patch(`${API_URL}/notifications/read-all`, {}, config);
+            await notificationService.markAllAsRead();
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             setUnreadCount(0);
         } catch (error) {
@@ -117,23 +102,16 @@ export default function Navbar() {
     };
 
     const handleRespondJoinRequest = async (notification, accept) => {
-        const config = getAuthHeaders();
-        if (!config) return;
-
         try {
-            await axios.post(
-                `${API_URL}/projects/join-requests/${notification.reference_id}/respond`,
-                { accept },
-                config
-            );
+            await projectService.respondJoinRequest(notification.reference_id, accept);
             markAsRead(notification.id);
         } catch (error) {
             console.error("Failed to respond to join request", error);
-            const msg = error.response?.data?.detail || "Failed to respond to join request";
+            const msg = extractErrorMessage(error, "Failed to respond to join request");
             setErrorMessage({ 
                 text: msg, 
                 type: 'error', 
-                id: `err-${notification.id}-${error.response?.status || 'network'}` 
+                id: `err-${notification.id}-${Date.now()}` 
             });
         }
     };

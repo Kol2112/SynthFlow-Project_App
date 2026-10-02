@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import '../styles/CreateProject.css';
 import UserPicker from './utils/UserPicker.jsx';
+import { projectService } from './utils/api.js';
+import { extractErrorMessage } from './utils/helperFunctions.js';
 
 export default function CreateProject({ onClose, projectForm, handleSubmit: externalSubmit, handleInputChange: externalInputChange, handlePriorityChange: externalPriorityChange }) {
     const [formData, setFormData] = useState({
@@ -57,13 +58,9 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
     const handleInviteUser = async (user) => {
         if (projectForm && projectForm.id) {
             try {
-                const token = localStorage.getItem('token');
-                await axios.post(`http://localhost:8000/api/projects/${projectForm.id}/invitations`, 
-                    { email: user.email }, 
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
+                await projectService.sendInvitation(projectForm.id, user.email);
             } catch (err) {
-                setError(err.response?.data?.detail || "Error sending invitation");
+                setError(extractErrorMessage(err, "Error sending invitation"));
                 return;
             }
         }
@@ -73,12 +70,9 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
     const handleRemoveMember = async (userToRemove) => {
         if (projectForm && projectForm.id && userToRemove.id) {
             try {
-                const token = localStorage.getItem('token');
-                await axios.delete(`http://localhost:8000/api/projects/${projectForm.id}/members/${userToRemove.id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                await projectService.removeMember(projectForm.id, userToRemove.id);
             } catch (err) {
-                setError(err.response?.data?.detail || "Could not remove member");
+                setError(extractErrorMessage(err, "Could not remove member"));
                 return;
             }
         }
@@ -96,16 +90,7 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
         e.preventDefault();
         setError('');
 
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setError("Authorization denied. Please log in again.");
-            return;
-        }
-
         const isEdit = Boolean(projectForm && projectForm.id);
-        const url = isEdit 
-            ? `http://localhost:8000/api/projects/${projectForm.id}`
-            : 'http://localhost:8000/api/projects';
 
         const payload = {
             name: formData.name,
@@ -117,12 +102,16 @@ export default function CreateProject({ onClose, projectForm, handleSubmit: exte
         };
 
         try {
-            const response = isEdit ? await axios.put(url, payload, { headers: { Authorization: `Bearer ${token}` } }): await axios.post(url, payload, { headers: { Authorization: `Bearer ${token}` } });
+            if (isEdit) {
+                await projectService.updateProject(projectForm.id, payload);
+            } else {
+                await projectService.createProject(payload);
+            }
 
             if (onClose) onClose();
             window.location.reload();
         } catch (err) {
-            setError(err.response?.data?.detail || "Something went wrong");
+            setError(extractErrorMessage(err, "Something went wrong"));
         }
     };
 

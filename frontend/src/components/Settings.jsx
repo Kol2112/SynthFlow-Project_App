@@ -1,7 +1,8 @@
 import { useState } from "react";
-import axios from "axios";
 import ConfirmationModal from "./utils/ConfirmationModal";
 import ErrorMsg from "./utils/ErrorMsg";
+import { projectService } from "./utils/api.js";
+import { extractErrorMessage } from "./utils/helperFunctions.js";
 import "../styles/Account.css";
 
 export default function Settings() {
@@ -51,22 +52,17 @@ export default function Settings() {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
         setLoading(true);
 
-        const token = localStorage.getItem("token");
         try {
-            const response = await axios.post(
-                "http://localhost:8000/api/projects/join-request",
-                { project_key: projectKey.trim() },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+            const data = await projectService.requestJoinProject(projectKey.trim());
 
             setStatusMsg({ 
-                text: response.data.message, 
+                text: data.message || "Join request sent successfully!", 
                 type: "success", 
                 id: `msg-${Date.now()}` 
             });
             setProjectKey("");
         } catch (err) {
-            const detail = err.response?.data?.detail || "Failed to send join request.";
+            const detail = extractErrorMessage(err, "Failed to send join request.");
             setStatusMsg({ 
                 text: detail, 
                 type: "error", 

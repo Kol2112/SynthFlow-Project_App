@@ -3,6 +3,8 @@ import '../styles/Account.css';
 import { useEffect, useRef, useState } from "react";
 import ErrorMsg from "./utils/ErrorMsg.jsx";
 import ConfirmationModal from "./utils/ConfirmationModal.jsx";
+import { userService } from "./utils/api.js";
+import { extractErrorMessage } from "./utils/helperFunctions.js";
 
 export default function Account(){
     const [avatarUrl, setAvatarUrl] = useState('');
@@ -32,69 +34,51 @@ export default function Account(){
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
     };
 
-    useEffect(()=>{
-        const fetchUserData = async() =>{
-            try{
-                const token = localStorage.getItem("token");
-                const response = await fetch("http://localhost:8000/api/users/me", {
-                    headers: {"Authorization": `Bearer ${token}`}
-                });
-                if(response.ok){
-                    const data = await response.json();
-                    if(data.avatar_url){
-                        setAvatarUrl(data.avatar_url);
-                    }
-                    if(data.email){
-                        setCurrentEmail(data.email);
-                    }
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const data = await userService.getMe();
+                if (data.avatar_url) {
+                    setAvatarUrl(data.avatar_url);
                 }
-            } catch(error){
+                if (data.email) {
+                    setCurrentEmail(data.email);
+                }
+            } catch (error) {
                 console.error("Failed to fetch user data", error);
             }
         };
         fetchUserData();
     }, []);
 
-    const triggerFileInput = () =>{
-        if(fileInputRef.current){
+    const triggerFileInput = () => {
+        if (fileInputRef.current) {
             fileInputRef.current.click();
         }
     };
 
-    const handleAvatarChange = async(e) =>{
+    const handleAvatarChange = async (e) => {
         const file = e.target.files[0];
-        if(!file) return;
+        if (!file) return;
 
-        if(file.size > 2 * 1024 * 1024){
+        if (file.size > 2 * 1024 * 1024) {
             setNotification({ text: "File size should not exceed 2MB", type: "error" });
             return;
         }
         
         const reader = new FileReader();
-        reader.onloadend = async() =>{
+        reader.onloadend = async () => {
             const base64Image = reader.result;
             setIsLoading(true);
 
-            try{
-                const token = localStorage.getItem("token");
-                const response = await fetch("http://localhost:8000/api/users/me/avatar",{
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify({avatar_url: base64Image})
-                });
-                if(response.ok){
-                    setAvatarUrl(base64Image);
-                    window.dispatchEvent(new Event("avatarUpdated"));
-                    setNotification({ text: "Avatar updated successfully!", type: "success" });
-                }else{
-                    setNotification({ text: "Failed to update avatar", type: "error" });
-                }
-            }catch(error){
-                setNotification({ text: "Error uploading avatar", type: "error" });
-            } finally{
+            try {
+                await userService.updateAvatar(base64Image);
+                setAvatarUrl(base64Image);
+                window.dispatchEvent(new Event("avatarUpdated"));
+                setNotification({ text: "Avatar updated successfully!", type: "success" });
+            } catch (error) {
+                setNotification({ text: extractErrorMessage(error, "Failed to update avatar"), type: "error" });
+            } finally {
                 setIsLoading(false);
             }
         };
@@ -105,18 +89,12 @@ export default function Account(){
         closeModal();
         setIsLoading(true);
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch("http://localhost:8000/api/users/me/avatar", {
-                method: "DELETE",
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-            if (response.ok) {
-                setAvatarUrl('');
-                window.dispatchEvent(new Event("avatarUpdated"));
-                setNotification({ text: "Avatar deleted successfully!", type: "success" });
-            }
+            await userService.deleteAvatar();
+            setAvatarUrl('');
+            window.dispatchEvent(new Event("avatarUpdated"));
+            setNotification({ text: "Avatar deleted successfully!", type: "success" });
         } catch (error) {
-            setNotification({ text: "Error deleting avatar", type: "error" });
+            setNotification({ text: extractErrorMessage(error, "Error deleting avatar"), type: "error" });
         } finally {
             setIsLoading(false);
         }
@@ -137,26 +115,12 @@ export default function Account(){
         e.preventDefault();
 
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch("http://localhost:8000/api/users/me/request-email-change", {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ new_email: newEmail, password: emailPassword })
-            });
-
-            const data = await response.json();
-            if (response.ok) {
-                setNewEmail('');
-                setEmailPassword('');
-                setNotification({ text: data.message, type: 'success' });
-            } else {
-                setNotification({ text: data.detail || "Failed to request email change.", type: 'error' });
-            }
+            const data = await userService.requestEmailChange({ new_email: newEmail, password: emailPassword });
+            setNewEmail('');
+            setEmailPassword('');
+            setNotification({ text: data.message || "Email change request sent!", type: 'success' });
         } catch (error) {
-            setNotification({ text: "Connection error.", type: 'error' });
+            setNotification({ text: extractErrorMessage(error, "Failed to request email change."), type: 'error' });
         }
     };
 
@@ -169,27 +133,13 @@ export default function Account(){
         }
 
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch("http://localhost:8000/api/users/me/request-password-change", {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
-            });
-
-            const data = await response.json();
-            if (response.ok) {
-                setCurrentPassword('');
-                setNewPassword('');
-                setConfirmPassword('');
-                setNotification({ text: data.message, type: 'success' });
-            } else {
-                setNotification({ text: data.detail || "Failed to request password change.", type: 'error' });
-            }
+            const data = await userService.requestPasswordChange({ current_password: currentPassword, new_password: newPassword });
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+            setNotification({ text: data.message || "Password changed successfully!", type: 'success' });
         } catch (error) {
-            setNotification({ text: "Connection error.", type: 'error' });
+            setNotification({ text: extractErrorMessage(error, "Failed to request password change."), type: 'error' });
         }
     };
 
@@ -197,21 +147,12 @@ export default function Account(){
         closeModal();
         setIsLoading(true);
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch("http://localhost:8000/api/users/me", {
-                method: "DELETE",
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                localStorage.removeItem("token");
-                window.location.href = "/login";
-            } else {
-                const data = await response.json();
-                setNotification({ text: data.detail || "Failed to delete account.", type: 'error' });
-            }
+            await userService.deleteAccount();
+            localStorage.removeItem("token");
+            sessionStorage.removeItem("token");
+            window.location.href = "/login";
         } catch (error) {
-            setNotification({ text: "Connection error.", type: 'error' });
+            setNotification({ text: extractErrorMessage(error, "Failed to delete account."), type: 'error' });
         } finally {
             setIsLoading(false);
         }
@@ -234,7 +175,7 @@ export default function Account(){
         });
     };
 
-    return(
+    return (
         <div className="accountContainer">
             <ErrorMsg message={notification} />
 
