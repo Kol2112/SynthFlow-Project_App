@@ -6,10 +6,13 @@ from datetime import datetime, timedelta
 from typing import Optional
 from passlib.context import CryptContext
 import jwt, models
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SECRET_KEY = 'HAS'
+SECRET_KEY = os.getenv("SECRET_KEY", "HAS")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 
