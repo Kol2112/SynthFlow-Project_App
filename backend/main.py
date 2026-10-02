@@ -10,6 +10,7 @@ import os, re, json
 from dotenv import load_dotenv
 from pathlib import Path
 import uuid
+import httpx
 import models, schemas
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
@@ -57,18 +58,30 @@ app.add_middleware(
 
 reset_tokens = {}
 activation_tokens = {}
-
-mail_config = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME", ""),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD", ""),
-    MAIL_FROM=os.getenv("MAIL_FROM", "twój-zweryfikowany-mail@domena.com"),
-    MAIL_PORT=int(os.getenv("MAIL_PORT", 465)),
-    MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp-relay.brevo.com"),
-    MAIL_STARTTLS=False,
-    MAIL_SSL_TLS=True,
-    USE_CREDENTIALS=True,
-    VALIDATE_CERTS=True
-)
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", os.getenv("MAIL_PASSWORD", ""))
+MAIL_FROM = os.getenv("MAIL_FROM", "synthflowmailer@gmail.com")
+def send_email_via_brevo_api(subject: str, recipient_email: str, html_content: str):
+    """Wysyła e-mail bezpośrednio przez REST API Brevo z pominięciem blokad portów SMTP."""
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "accept": "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json"
+    }
+    payload = {
+        "sender": {"email": MAIL_FROM, "name": "SynthFlow"},
+        "to": [{"email": recipient_email}],
+        "subject": subject,
+        "htmlContent": html_content
+    }
+    
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            response = client.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+            print(f"Email sent successfully to {recipient_email}")
+    except Exception as e:
+        print(f"Failed to send email via Brevo API: {e}")
 
 def send_activation_email_background(email: str, token: str, background_tasks: BackgroundTasks):
     activation_link = f"{BACKEND_URL}/api/auth/activate?token={token}"
@@ -90,7 +103,12 @@ def send_activation_email_background(email: str, token: str, background_tasks: B
         subtype=MessageType.html
     )
     fm = FastMail(mail_config)
-    background_tasks.add_task(fm.send_message, message)
+    background_tasks.add_task(
+            send_email_via_brevo_api,
+            subject="SynthFlow - Activate Your Account",
+            recipient_email=email,
+            html_content=html_content
+        )
 
 def send_project_invitation_email_background(
     invited_email: str, 
