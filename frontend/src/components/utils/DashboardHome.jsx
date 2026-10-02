@@ -3,7 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import PanelView from '../PanelView.jsx';
 import LatestProject from '../LatestProject.jsx';
 import ComingTasks from '../ComingTasks.jsx';
-import EmptyDashboard from '../emptyDashboard.jsx';
+import EmptyDashboard from '../EmptyDashboard.jsx';
 import '../../styles/share.css';
 
 export default function DashboardHome() {
