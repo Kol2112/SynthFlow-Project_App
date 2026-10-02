@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-    baseURL: "http://127.0.0.1:8000/api",
+    baseURL: import.meta.env.VITE_API_URL,
     withCredentials: true,
 });
 
@@ -20,7 +20,7 @@ export const authService = {
 
 export const deleteProjectApi = async (projectId) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem('token');
-    const response = await fetch(`http://localhost:8000/api/projects/${projectId}`, {
+    const response = await fetch(`https://synthflow-backend.onrender.com/api/projects/${projectId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
     });
