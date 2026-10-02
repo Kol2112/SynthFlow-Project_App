@@ -1,23 +1,25 @@
 from fastapi import FastAPI, BackgroundTasks, Depends, HTTPException, status, Request
-from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
-import os, re, json
+import os, re, json, httpx
 from dotenv import load_dotenv
 from pathlib import Path
 import uuid
-import httpx
 import models, schemas
 from apscheduler.schedulers.background import BackgroundScheduler
 from contextlib import asynccontextmanager
 from services.scheduler import check_task_deadlines
 from services import notification as notif_service
+
 from database import get_db, engine
 from auth import get_password_hash, verify_password, create_access_token, get_current_user, refresh_access_token
+
+# Automatyczne tworzenie tabel w bazie przy starcie
+models.Base.metadata.create_all(bind=engine)
 
 def get_utc_now() -> datetime:
     """Zwraca aktualny czas UTC bez strefy czasowej (dla zgodności z bazą danych)."""
@@ -31,15 +33,19 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     yield
     scheduler.shutdown()
-models.Base.metadata.create_all(bind=engine)
+
 app = FastAPI(lifespan=lifespan)
 pending_changes = {}
 
+# --- POBIERANIE ADRESÓW I KONFIGURACJI ZE ZMIENNYCH ŚRODOWISKOWYCH ---
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
+
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+MAIL_FROM = os.getenv("MAIL_FROM", "synthflowmailer@gmail.com")
 
 origins = [
     "http://localhost:5173",
@@ -58,10 +64,9 @@ app.add_middleware(
 
 reset_tokens = {}
 activation_tokens = {}
-BREVO_API_KEY = os.getenv("BREVO_API_KEY", os.getenv("MAIL_PASSWORD", ""))
-MAIL_FROM = os.getenv("MAIL_FROM", "synthflowmailer@gmail.com")
+
+# --- FUNKCJA WYSYŁAJĄCA MAILE PRZEZ BREVO REST API (HTTPS PORT 443) ---
 def send_email_via_brevo_api(subject: str, recipient_email: str, html_content: str):
-    """Wysyła e-mail bezpośrednio przez REST API Brevo z pominięciem blokad portów SMTP."""
     url = "https://api.brevo.com/v3/smtp/email"
     headers = {
         "accept": "application/json",
@@ -74,14 +79,15 @@ def send_email_via_brevo_api(subject: str, recipient_email: str, html_content: s
         "subject": subject,
         "htmlContent": html_content
     }
-    
     try:
         with httpx.Client(timeout=10.0) as client:
             response = client.post(url, json=payload, headers=headers)
             response.raise_for_status()
-            print(f"Email sent successfully to {recipient_email}")
+            print(f"Email sent successfully via Brevo API to {recipient_email}")
     except Exception as e:
-        print(f"Failed to send email via Brevo API: {e}")
+        print(f"Failed to send email via Brevo API to {recipient_email}: {e}")
+
+# --- WYSYŁANIE MAILOW W TLE ---
 
 def send_activation_email_background(email: str, token: str, background_tasks: BackgroundTasks):
     activation_link = f"{BACKEND_URL}/api/auth/activate?token={token}"
@@ -96,19 +102,12 @@ def send_activation_email_background(email: str, token: str, background_tasks: B
             <p style="color: #586069; font-size: 0.9rem;">If you did not register for our service, please ignore this message.</p>
         </div>
     """
-    message = MessageSchema(
-        subject="SynthFlow - Activate Your Account",
-        recipients=[email],
-        body=html_content,
-        subtype=MessageType.html
-    )
-    fm = FastMail(mail_config)
     background_tasks.add_task(
-            send_email_via_brevo_api,
-            subject="SynthFlow - Activate Your Account",
-            recipient_email=email,
-            html_content=html_content
-        )
+        send_email_via_brevo_api,
+        subject="SynthFlow - Activate Your Account",
+        recipient_email=email,
+        html_content=html_content
+    )
 
 def send_project_invitation_email_background(
     invited_email: str, 
@@ -131,14 +130,12 @@ def send_project_invitation_email_background(
             </div>
         </div>
     """
-    message = MessageSchema(
+    background_tasks.add_task(
+        send_email_via_brevo_api,
         subject=f"SynthFlow - Invitation to project: {project_name}",
-        recipients=[invited_email],
-        body=html_content,
-        subtype=MessageType.html
+        recipient_email=invited_email,
+        html_content=html_content
     )
-    fm = FastMail(mail_config)
-    background_tasks.add_task(fm.send_message, message)
 
 def send_confirmation_email_background(email: str, token: str, action_type: str, background_tasks: BackgroundTasks):
     confirm_link = f"{FRONTEND_URL}/confirm-change?token={token}"
@@ -155,14 +152,12 @@ def send_confirmation_email_background(email: str, token: str, action_type: str,
             <p style="color: #8b949e; font-size: 0.85rem;">If you did not request this change, please ignore this email - no modifications will be applied.</p>
         </div>
     """
-    message = MessageSchema(
+    background_tasks.add_task(
+        send_email_via_brevo_api,
         subject=f"SynthFlow - Confirm {action_text}",
-        recipients=[email],
-        body=html_content,
-        subtype=MessageType.html
+        recipient_email=email,
+        html_content=html_content
     )
-    fm = FastMail(mail_config)
-    background_tasks.add_task(fm.send_message, message)
 
 def send_security_notice_email_background(email: str, action_type: str, background_tasks: BackgroundTasks):
     action_text = "email address change" if action_type == "email" else "password change"
@@ -174,9 +169,12 @@ def send_security_notice_email_background(email: str, action_type: str, backgrou
             <p style="color: #586069; font-size: 0.9rem; margin-top: 20px;">This is an automatically generated message, please do not reply.</p>
         </div>
     """
-    message = MessageSchema(subject=f"Synthflow - Security Alert: {action_text.capitalize()}", recipients=[email], body=html_content, subtype=MessageType.html)
-    fm = FastMail(mail_config)
-    background_tasks.add_task(fm.send_message, message)
+    background_tasks.add_task(
+        send_email_via_brevo_api,
+        subject=f"Synthflow - Security Alert: {action_text.capitalize()}",
+        recipient_email=email,
+        html_content=html_content
+    )
 
 def send_reset_email_background(email: str, token: str, background_tasks: BackgroundTasks):
     reset_link = f"{FRONTEND_URL}/recovery?token={token}"
@@ -191,14 +189,12 @@ def send_reset_email_background(email: str, token: str, background_tasks: Backgr
             <p style="color: #586069; font-size: 0.9rem;">If you did not request a password change, please ignore this email.</p>
         </div>
     """
-    message = MessageSchema(
+    background_tasks.add_task(
+        send_email_via_brevo_api,
         subject="SynthFlow - Password Reset",
-        recipients=[email],
-        body=html_content,
-        subtype=MessageType.html
+        recipient_email=email,
+        html_content=html_content
     )
-    fm = FastMail(mail_config)
-    background_tasks.add_task(fm.send_message, message)
 
 def send_join_request_email_background(owner_email: str, requester_name: str, requester_email: str, project_name: str, token: str, background_tasks: BackgroundTasks):
     accept_link = f"{BACKEND_URL}/api/projects/confirm-join-request-link?token={token}&action=accept"
@@ -216,14 +212,12 @@ def send_join_request_email_background(owner_email: str, requester_name: str, re
             <p style="color: #8b949e; font-size: 0.85rem;">If no action is taken, the request will expire automatically after 24 hours.</p>
         </div>
     """
-    message = MessageSchema(
+    background_tasks.add_task(
+        send_email_via_brevo_api,
         subject=f"SynthFlow - Access request for project: {project_name}",
-        recipients=[owner_email],
-        body=html_content,
-        subtype=MessageType.html
+        recipient_email=owner_email,
+        html_content=html_content
     )
-    fm = FastMail(mail_config)
-    background_tasks.add_task(fm.send_message, message)
 
 def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
     return db.query(models.User).filter(models.User.email == email).first()
@@ -1146,7 +1140,7 @@ def confirm_join_request_link(token: str, action: str, db: Session = Depends(get
 
     return RedirectResponse(url=f"{FRONTEND_URL}/login?msg={msg}")
 
-
+# --- PROJECT MEMBERS ---
 
 @app.get("/api/users/search", response_model=schemas.UserResponse)
 def search_user_by_email(email: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
