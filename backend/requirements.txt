@@ -6,7 +6,7 @@ uvicorn==0.30.1
 
 # Obsługa bazy danych PostgreSQL oraz systemu ORM
 sqlalchemy>=2.0.36
-psycopg2-binary>=2.9.10
+psycopg[binary]
 
 # Zarządzanie migracjami struktury bazy danych
 alembic==1.13.1
