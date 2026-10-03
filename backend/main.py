@@ -1,7 +1,7 @@
 from fastapi import FastAPI, BackgroundTasks, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import or_
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
@@ -17,10 +17,10 @@ from services import notification as notif_service
 
 from database import get_db, engine
 from auth import get_password_hash, verify_password, create_access_token, get_current_user, refresh_access_token
+
 models.Base.metadata.create_all(bind=engine)
 
 def get_utc_now() -> datetime:
-    """Zwraca aktualny czas UTC bez strefy czasowej (dla zgodności z bazą danych)."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 scheduler = BackgroundScheduler()
@@ -62,7 +62,7 @@ app.add_middleware(
 reset_tokens = {}
 activation_tokens = {}
 
-def send_email_via_brevo_api(subject: str, recipient_email: str, html_content: str):
+async def send_email_via_brevo_api_async(subject: str, recipient_email: str, html_content: str):
     url = "https://api.brevo.com/v3/smtp/email"
     headers = {
         "accept": "application/json",
@@ -76,8 +76,8 @@ def send_email_via_brevo_api(subject: str, recipient_email: str, html_content: s
         "htmlContent": html_content
     }
     try:
-        with httpx.Client(timeout=10.0) as client:
-            response = client.post(url, json=payload, headers=headers)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             print(f"Email sent successfully via Brevo API to {recipient_email}")
     except Exception as e:
@@ -97,7 +97,7 @@ def send_activation_email_background(email: str, token: str, background_tasks: B
         </div>
     """
     background_tasks.add_task(
-        send_email_via_brevo_api,
+        send_email_via_brevo_api_async,
         subject="SynthFlow - Activate Your Account",
         recipient_email=email,
         html_content=html_content
@@ -125,7 +125,7 @@ def send_project_invitation_email_background(
         </div>
     """
     background_tasks.add_task(
-        send_email_via_brevo_api,
+        send_email_via_brevo_api_async,
         subject=f"SynthFlow - Invitation to project: {project_name}",
         recipient_email=invited_email,
         html_content=html_content
@@ -147,7 +147,7 @@ def send_confirmation_email_background(email: str, token: str, action_type: str,
         </div>
     """
     background_tasks.add_task(
-        send_email_via_brevo_api,
+        send_email_via_brevo_api_async,
         subject=f"SynthFlow - Confirm {action_text}",
         recipient_email=email,
         html_content=html_content
@@ -164,7 +164,7 @@ def send_security_notice_email_background(email: str, action_type: str, backgrou
         </div>
     """
     background_tasks.add_task(
-        send_email_via_brevo_api,
+        send_email_via_brevo_api_async,
         subject=f"Synthflow - Security Alert: {action_text.capitalize()}",
         recipient_email=email,
         html_content=html_content
@@ -184,7 +184,7 @@ def send_reset_email_background(email: str, token: str, background_tasks: Backgr
         </div>
     """
     background_tasks.add_task(
-        send_email_via_brevo_api,
+        send_email_via_brevo_api_async,
         subject="SynthFlow - Password Reset",
         recipient_email=email,
         html_content=html_content
@@ -207,7 +207,7 @@ def send_join_request_email_background(owner_email: str, requester_name: str, re
         </div>
     """
     background_tasks.add_task(
-        send_email_via_brevo_api,
+        send_email_via_brevo_api_async,
         subject=f"SynthFlow - Access request for project: {project_name}",
         recipient_email=owner_email,
         html_content=html_content
@@ -355,7 +355,6 @@ def activate_account(token: str, db: Session = Depends(get_db)):
         url=f"{FRONTEND_URL}/login?msg=Account+activated+successfully!+You+can+now+log+in."
     )
 
-
 @app.post("/api/projects", response_model=schemas.ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_new_project(project_data: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     existing_key = db.query(models.Project).filter(
@@ -403,8 +402,8 @@ def get_user_projects(db: Session = Depends(get_db), current_user: models.User =
     ).subquery()
 
     projects = db.query(models.Project).options(
-        joinedload(models.Project.members),
-        joinedload(models.Project.tasks).joinedload(models.Task.assignees)
+        selectinload(models.Project.members),
+        selectinload(models.Project.tasks).selectinload(models.Task.assignees)
     ).filter(
         or_(
             models.Project.owner_id == current_user.id,
@@ -416,7 +415,16 @@ def get_user_projects(db: Session = Depends(get_db), current_user: models.User =
 
 @app.get("/api/projects/by-key/{project_key}")
 def get_project_details(project_key: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    project = db.query(models.Project).filter(models.Project.project_key == project_key).first()
+    # Zoptymalizowane zapytanie - ładujemy zbiorczo kolumny, zadania, podzadania oraz przypisanych użytkowników
+    project = db.query(models.Project).options(
+        selectinload(models.Project.columns)
+            .selectinload(models.TaskColumn.tasks)
+            .selectinload(models.Task.assignees),
+        selectinload(models.Project.columns)
+            .selectinload(models.TaskColumn.tasks)
+            .selectinload(models.Task.subtasks)
+    ).filter(models.Project.project_key == project_key).first()
+
     if not project or not is_user_project_member_or_owner(project.id, current_user.id, db):
         raise HTTPException(status_code=404, detail="Project not found or access denied")
     
@@ -424,7 +432,7 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
     if member:
         member.last_accessed_at = get_utc_now()
         db.commit()
-    columns = db.query(models.TaskColumn).filter(models.TaskColumn.project_id == project.id).order_by(models.TaskColumn.position).all()
+
     accepted_members = db.query(models.User).join(models.ProjectMember).filter(
         models.ProjectMember.project_id == project.id,
         models.ProjectMember.status == models.InvitationStatus.ACCEPTED
@@ -487,13 +495,17 @@ def get_project_details(project_key: str, db: Session = Depends(get_db), current
                         ]
                     } for t in col.tasks
                 ]
-            } for col in columns
+            } for col in project.columns
         ]
     }
 
 @app.get("/api/projects/recent", response_model=list[schemas.ProjectResponse])
 def get_recent_projects(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     recent_projects = db.query(models.Project)\
+        .options(
+            selectinload(models.Project.members),
+            selectinload(models.Project.tasks).selectinload(models.Task.assignees)
+        )\
         .join(models.ProjectMember, models.Project.id == models.ProjectMember.project_id)\
         .filter(
             models.ProjectMember.user_id == current_user.id,
@@ -962,7 +974,7 @@ def request_password_change(
     current_user: models.User = Depends(get_current_user)
 ):
     if not verify_password(password_data.current_password, current_user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password!")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect password!")
 
     token = str(uuid.uuid4())
     
