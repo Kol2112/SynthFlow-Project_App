@@ -41,9 +41,10 @@ load_dotenv(dotenv_path=env_path)
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 
-BREVO_API_KEY = os.getenv("BREVO_API_KEY", "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")
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 MAIL_FROM = os.getenv("MAIL_FROM", "synthflowmailer@gmail.com")
-
+if not BREVO_API_KEY:
+    print("WARNING: BREVO_API_KEY is not set in environment variables!")
 origins = [
     "http://localhost:5173",
     "http://localhost:3000",
