@@ -57,6 +57,7 @@ app.add_middleware(
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=86400,
 )
 
 reset_tokens = {}
