@@ -1,19 +1,30 @@
+import { useState } from 'react';
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { IoEllipsisHorizontal } from "react-icons/io5";
-import RenderAvatars from './utils/RenderAvatars.jsx';
-
-import TasksContainer from './utils/TaskContainer.jsx';
+import { FaRegCalendar } from "react-icons/fa";
 import '../styles/ProjectKanbanView.css';
-import '../styles/DropDown.css';
+export default function ProjectKanbanView({ 
+    columns = [], 
+    activeColumnDropdown, 
+    setActiveColumnDropdown, 
+    activeTaskDropdown, 
+    setActiveTaskDropdown, 
+    onOpenAddTaskModal, 
+    onOpenEditTaskModal, 
+    onDeleteList, 
+    onRenameListModal, 
+    onDeleteTask, 
+    onMoveTask, 
+    onToggleTaskComplete, 
+    onOpenAddListModal 
+}) {
+    const [copiedId, setCopiedId] = useState(null);
 
-export default function ProjectKanbanView({ columns = [], activeColumnDropdown, setActiveColumnDropdown, activeTaskDropdown, setActiveTaskDropdown, onOpenAddTaskModal, onOpenEditTaskModal, onDeleteList, onRenameListModal, onDeleteTask, onMoveTask, onToggleTaskComplete, onOpenAddListModal }) {
-
-    const getTaskAssignees = (task) => {
-        if (Array.isArray(task.assignees) && task.assignees.length > 0) return task.assignees;
-        if (Array.isArray(task.members) && task.members.length > 0) return task.members;
-        if (Array.isArray(task.users) && task.users.length > 0) return task.users;
-        if (task.assignee) return [task.assignee];
-        return [];
+    const handleCopyId = (e, taskId) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(`#${taskId}`);
+        setCopiedId(taskId);
+        setTimeout(() => setCopiedId(null), 1500);
     };
 
     const currentDate = new Date().toLocaleDateString('pl-PL', {
@@ -38,7 +49,7 @@ export default function ProjectKanbanView({ columns = [], activeColumnDropdown, 
             {(provided) => (
                 <div className="kanbanBoard" ref={provided.innerRef} {...provided.droppableProps}>
                     {columns.map((column, index) => (
-                        <Draggable key={column.id} draggableId={String(column.id)} index={index}>
+                        <Draggable key={column.id} draggableId={`col-${column.id}`} index={index}>
                             {(draggableProvided) => (
                                 <div className="kanbanColumn" ref={draggableProvided.innerRef} {...draggableProvided.draggableProps}>
                                     <div className="columnHeader" {...draggableProvided.dragHandleProps}>
@@ -59,20 +70,85 @@ export default function ProjectKanbanView({ columns = [], activeColumnDropdown, 
                                         </div>
                                     </div>
 
-                                    <TasksContainer 
-                                        column={column}
-                                        columns={columns}
-                                        activeTaskDropdown={activeTaskDropdown}
-                                        setActiveTaskDropdown={setActiveTaskDropdown}
-                                        setActiveColumnDropdown={setActiveColumnDropdown}
-                                        onOpenEditTaskModal={onOpenEditTaskModal}
-                                        onMoveTask={onMoveTask}
-                                        onDeleteTask={onDeleteTask}
-                                        onToggleTaskComplete={onToggleTaskComplete}
-                                        getTaskAssignees={getTaskAssignees}
-                                        RenderAvatarsComponent={RenderAvatars}
-                                        currentDate={currentDate}
-                                    />
+                                    <Droppable droppableId={`task-list-${column.id}`} type="task">
+                                        {(droppableProvided) => (
+                                            <div className="tasksContainer" ref={droppableProvided.innerRef} {...droppableProvided.droppableProps}>
+                                                {column.tasks && column.tasks.map((task, taskIndex) => (
+                                                    <Draggable key={task.id} draggableId={`task-${task.id}`} index={taskIndex}>
+                                                        {(taskDraggableProvided) => (
+                                                            <div className="taskCard" ref={taskDraggableProvided.innerRef} {...taskDraggableProvided.draggableProps}>
+                                                                <div className="taskTopRow" {...taskDraggableProvided.dragHandleProps}>
+                                                                    <div className="taskTitleGroup">
+                                                                        <span onClick={(e) => handleCopyId(e, task.id)} title="Click to copy task ID for commit" className={`taskIdBadge ${copiedId === task.id ? 'copied' : ''}`}>
+                                                                            {copiedId === task.id ? 'Copied!' : `#${task.id}`}
+                                                                        </span>
+                                                                        <span className="taskName">{task.name}</span>
+                                                                    </div>
+                                                                    
+                                                                    <div className="dropdown" onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveTaskDropdown(activeTaskDropdown === task.id ? null : task.id);
+                                                                        setActiveColumnDropdown(null);
+                                                                    }}>
+                                                                        <button className="taskOptionsBtn"><IoEllipsisHorizontal /></button>
+                                                                        {activeTaskDropdown === task.id && (
+                                                                            <ul className="dropdownElementsContainer">
+                                                                                <li onClick={() => onOpenEditTaskModal(column.id, task)}>Edit</li>
+                                                                                
+                                                                                <li className="moveSubmenuTrigger" onClick={(e) => e.stopPropagation()}>
+                                                                                    <span>Move to</span>
+                                                                                    <ul className="submenuContainer">
+                                                                                        {columns.filter(col => col.id !== column.id).map(destCol => (
+                                                                                                <li key={destCol.id} onClick={() => onMoveTask(task.id, column.id, destCol.id)}>
+                                                                                                    {destCol.name}
+                                                                                                </li>
+                                                                                            ))
+                                                                                        }
+                                                                                        {columns.filter(col => col.id !== column.id).length === 0 && (
+                                                                                            <li className="disabledOption">Brak innych list</li>
+                                                                                        )}
+                                                                                    </ul>
+                                                                                </li>
+
+                                                                                <li onClick={() => onDeleteTask(column.id, task.id)}><span className='warning'>Delete</span></li>
+                                                                            </ul>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="taskMetaRow">
+                                                                    <div className={"taskDateBlock".concat(currentDate > task.date ? ' warning': '')}>
+                                                                        <FaRegCalendar className="calendarIcon" />
+                                                                        <span>{task.date}</span>
+                                                                    </div>
+                                                                    <span className="progressPct">{task.progress}%</span>
+                                                                </div>
+                                                                <div className="taskBottomRow">
+                                                                    <div className="taskAssignees">
+                                                                        <div className="assigneeAvatar" title="Only you">
+                                                                            <span className="avatarText">Only you</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className={`taskStatusCheckCircle ${task.progress === 100 ? 'completed' : ''}`} 
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            onToggleTaskComplete(column.id, task.id, task.progress === 100);
+                                                                        }}
+                                                                        title={task.progress === 100 ? "Mark as uncompleted" : "Mark as completed"}>
+                                                                        {task.progress === 100 && (
+                                                                            <svg className="checkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                                                            </svg>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </Draggable>
+                                                ))}
+                                                {droppableProvided.placeholder}
+                                            </div>
+                                        )}
+                                    </Droppable>
 
                                     <button className="addTaskBtn" onClick={() => onOpenAddTaskModal(column.id)}>
                                         <span className="plusIcon">+</span> Add task
