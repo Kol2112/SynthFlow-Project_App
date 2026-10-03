@@ -384,8 +384,10 @@ export default function ProjectDetailsPage() {
             return;
         }
 
-        const sourceColId = parseInt(source.droppableId);
-        const destColId = parseInt(destination.droppableId);
+        const parseColId = (id) => parseInt(String(id).replace(/^task-list-/, ''), 10);
+        const sourceColId = parseColId(source.droppableId);
+        const destColId = parseColId(destination.droppableId);
+
         const sourceCol = columns.find(col => col.id === sourceColId);
         const destCol = columns.find(col => col.id === destColId);
         
