@@ -1,194 +1,220 @@
-.kanbanBoard {
-    display: flex;
-    gap: 1.25rem;
-    overflow-x: auto;
-    padding-bottom: 1.5rem;
-    align-items: flex-start;
-    width: 100%;
-}
+.taskListContainer {
+  width: 100%;
+  background-color: transparent;
+  font-family: 'Roboto', sans-serif;
+  color: #E6EDF3;
 
-.kanbanColumn {
-    background: #111419;
-    border-radius: 16px;
-    width: 250px;
-    min-width: 250px;
-    padding: 1.2rem 1rem;
+  .taskListHeader {
+    display: grid;
+    grid-template-columns: minmax(220px, 2.2fr) 1.2fr 1fr 1fr 1fr 1.2fr 90px;
+    align-items: center;
+    gap: 12px;
+    padding: 0.6rem 1.25rem;
+    margin-bottom: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: #8B949E;
+    font-weight: 400;
+
+    & > div {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:first-child {
+        justify-content: flex-start;
+        padding-left: 2.2rem;
+      }
+    }
+  }
+
+  .taskListBody {
     display: flex;
     flex-direction: column;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    gap: 6px;
 
-    .columnHeader {
-        display: flex;
-        justify-content: space-between;
+    .taskItemGroup {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+
+      .taskListRow {
+        display: grid;
+        grid-template-columns: minmax(220px, 2.2fr) 1.2fr 1fr 1fr 1fr 1.2fr 90px;
         align-items: center;
-        margin-bottom: 1rem;
-        padding: 0 0.2rem;
-
-        .columnTitle {
-            font-family: var(--font-main);
-            font-size: 0.95rem;
-            color: #A5A5AE;
-            font-weight: 500;
-        }
-
-        .columnOptionsBtn {
-            background: transparent;
-            border: none;
-            color: #646870;
-            font-size: 1.1rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            padding: 0;
-
-            &:hover {
-                color: var(--text-primary);
-            }
-        }
-    }
-
-    .addTaskBtn {
-        background: transparent;
-        border: none;
-        color: #484C54;
-        font-family: var(--font-secondary);
-        font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        cursor: pointer;
-        padding: 0.4rem 0.2rem;
-        width: 100%;
-        text-align: left;
-        transition: color 0.2s ease;
-
-        &:hover {
-            color: #8B8F98;
-        }
-
-        .plusIcon {
-            font-size: 1.1rem;
-        }
-    }
-}
-
-.tasksContainer {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-
-    .taskCard {
-        background: #090B0E;
+        gap: 12px;
+        background: #111419;
         border: 1px solid #1C1F26;
         border-radius: 12px;
-        padding: 0.9rem;
+        padding: 0.75rem 1.25rem;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
+        font-size: 0.9rem;
+
+        &:hover {
+          background: #161B22;
+          border-color: #30363D;
+        }
+
+        & > div {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+      }
+
+      .subtasksContainer {
         display: flex;
         flex-direction: column;
-        gap: 0.6rem;
+        gap: 3px;
+        padding-left: 1.5rem;
 
-        .taskTopRow {
+        .subtaskRow {
+          display: grid;
+          grid-template-columns: minmax(220px, 2.2fr) 1.2fr 1fr 1fr 1fr 1.2fr 90px;
+          align-items: center;
+          gap: 12px;
+          background: #090B0E;
+          border: 1px solid #161A26;
+          border-radius: 8px;
+          padding: 0.55rem 1.25rem;
+          font-size: 0.82rem;
+
+          &:hover {
+            background: #111419;
+          }
+
+          & > div {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            gap: 0.5rem;
-            width: 100%;
-
-            .taskTitleGroup {
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                flex: 1;
-                min-width: 0;
-                flex-wrap: nowrap;
-
-                .taskName {
-                    font-family: var(--font-secondary);
-                    font-size: 0.85rem;
-                    color: var(--text-primary);
-                    font-weight: 400;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    min-width: 0;
-                    display: block;
-                }
-            }
-
-            .dropdown {
-                flex-shrink: 0;
-
-                .taskOptionsBtn {
-                    background: transparent;
-                    border: none;
-                    color: #646870;
-                    font-size: 1.1rem;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    padding: 0;
-
-                    &:hover {
-                        color: var(--text-primary);
-                    }
-                }
-            }
+            justify-content: center;
+          }
         }
-
-        .taskMetaRow {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: #646870;
-            font-size: 0.75rem;
-            font-family: var(--font-main);
-            padding: 0;
-            margin: 0;
-
-            .taskDateBlock {
-                display: flex;
-                align-items: center;
-                gap: 0.4rem;
-                padding: 0;
-                margin: 0;
-
-                .calendarIcon {
-                    font-size: 0.85rem;
-                    margin: 0;
-                }
-            }
-
-            .progressPct {
-                color: #8B8F98;
-            }
-        }
-
-        .taskBottomRow {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 0.2rem;
-            padding: 0;
-        }
+      }
     }
+  }
 }
 
-.inlineAddListBtn {
-    background: rgba(17, 20, 25, 0.6);
-    border: 1px dashed #30363D;
-    border-radius: 16px;
-    width: 250px;
-    min-width: 250px;
-    height: 55px;
-    color: var(--text-secondary);
-    font-family: var(--font-main);
-    font-size: 0.9rem;
+.taskTitleCell,
+.subtaskTitleCell {
+  justify-content: flex-start !important;
+  gap: 10px;
+  overflow: hidden;
+
+  .expandBtn {
+    background: transparent;
+    border: none;
+    color: #8B949E;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 0.7rem;
+
+    &:hover {
+      color: #E6EDF3;
+    }
+  }
+
+  .expandPlaceholder {
+    width: 12px;
+  }
+
+  .taskTitleText,
+  .subtaskTitleText {
+    font-weight: 400;
+    color: #E6EDF3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &.completedText {
+      text-decoration: line-through;
+      color: #646870;
+    }
+  }
+}
+
+.statusText {
+  font-size: 0.85rem;
+  color: #8B949E;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.completenessText {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: #E6EDF3;
+}
+
+.deadlineText {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: #E6EDF3;
+
+  &.warning {
+    color: #f85149;
+    font-weight: 600;
+  }
+}
+
+.taskStatusCheckCircle {
+  cursor: pointer;
+}
+
+.detailsBtn {
+  background: #3e285c;
+  border: none;
+  border-radius: 12px;
+  padding: 0.35rem 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: #d2bcfd;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #4a2c70;
+    color: #ffffff;
+  }
+}
+
+.taskTitleGroup,
+.taskTopRow,
+.taskTitleCell,
+.subtaskTitleCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  .taskIdBadge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: #21262d;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    cursor: pointer;
+    user-select: none;
     transition: all 0.2s ease;
 
     &:hover {
-        background: #111419;
-        border-color: #646870;
-        color: var(--text-primary);
+      background-color: #30363d;
+      color: #c9d1d9;
     }
+
+    &.copied {
+      background-color: #238636;
+      color: #ffffff;
+      border-color: #238636;
+    }
+
+    &.subtask {
+      font-size: 0.7rem;
+      padding: 1px 5px;
+      margin-right: 6px;
+    }
+  }
 }
