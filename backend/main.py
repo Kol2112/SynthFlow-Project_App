@@ -17,8 +17,6 @@ from services import notification as notif_service
 
 from database import get_db, engine
 from auth import get_password_hash, verify_password, create_access_token, get_current_user, refresh_access_token
-
-# Automatyczne tworzenie tabel w bazie przy starcie
 models.Base.metadata.create_all(bind=engine)
 
 def get_utc_now() -> datetime:
@@ -37,14 +35,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 pending_changes = {}
 
-# --- POBIERANIE ADRESÓW I KONFIGURACJI ZE ZMIENNYCH ŚRODOWISKOWYCH ---
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 
-BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "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")
 MAIL_FROM = os.getenv("MAIL_FROM", "synthflowmailer@gmail.com")
 
 origins = [
@@ -65,7 +62,6 @@ app.add_middleware(
 reset_tokens = {}
 activation_tokens = {}
 
-# --- FUNKCJA WYSYŁAJĄCA MAILE PRZEZ BREVO REST API (HTTPS PORT 443) ---
 def send_email_via_brevo_api(subject: str, recipient_email: str, html_content: str):
     url = "https://api.brevo.com/v3/smtp/email"
     headers = {
@@ -86,8 +82,6 @@ def send_email_via_brevo_api(subject: str, recipient_email: str, html_content: s
             print(f"Email sent successfully via Brevo API to {recipient_email}")
     except Exception as e:
         print(f"Failed to send email via Brevo API to {recipient_email}: {e}")
-
-# --- WYSYŁANIE MAILOW W TLE ---
 
 def send_activation_email_background(email: str, token: str, background_tasks: BackgroundTasks):
     activation_link = f"{BACKEND_URL}/api/auth/activate?token={token}"
@@ -361,7 +355,6 @@ def activate_account(token: str, db: Session = Depends(get_db)):
         url=f"{FRONTEND_URL}/login?msg=Account+activated+successfully!+You+can+now+log+in."
     )
 
-# --- PROJECTS & COLUMNS ENDPOINTS ---
 
 @app.post("/api/projects", response_model=schemas.ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_new_project(project_data: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -879,8 +872,6 @@ async def github_webhook(request: Request, db: Session = Depends(get_db)):
             
     return {"status": "success", "message": "Webhook processed"}
 
-# --- USERS ENDPOINTS ---
-
 @app.get("/api/users/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(get_current_user)):
     return current_user
@@ -1017,8 +1008,6 @@ def confirm_change(token: str, db: Session = Depends(get_db)):
 
     return {"message": "Changes confirmed and successfully applied!"}
 
-# --- PROJECT JOIN REQUESTS ---
-
 @app.post("/api/projects/join-request", status_code=status.HTTP_201_CREATED)
 def request_join_project(request_data: schemas.ProjectJoinRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     project = db.query(models.Project).filter(models.Project.project_key == request_data.project_key).first()
@@ -1139,8 +1128,6 @@ def confirm_join_request_link(token: str, action: str, db: Session = Depends(get
     db.commit()
 
     return RedirectResponse(url=f"{FRONTEND_URL}/login?msg={msg}")
-
-# --- PROJECT MEMBERS ---
 
 @app.get("/api/users/search", response_model=schemas.UserResponse)
 def search_user_by_email(email: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
