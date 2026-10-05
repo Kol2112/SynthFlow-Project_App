@@ -384,44 +384,47 @@ export default function ProjectDetailsPage() {
             return;
         }
 
-        const parseColId = (id) => parseInt(String(id).replace(/^task-list-/, ''), 10);
+        if (type === "task") {
+            const parseColId = (id) => parseInt(String(id).replace(/^task-list-/, ''), 10);
 
-        const sourceColId = parseColId(source.droppableId);
-        const destColId = parseColId(destination.droppableId);
+            const sourceColId = parseColId(source.droppableId);
+            const destColId = parseColId(destination.droppableId);
 
-        const sourceCol = columns.find(col => col.id === sourceColId);
-        const destCol = columns.find(col => col.id === destColId);
-        
-        if (!sourceCol || !destCol) return;
-        const sourceTasks = Array.from(sourceCol.tasks);
-        const [movedTask] = sourceTasks.splice(source.index, 1);
+            const sourceCol = columns.find(col => col.id === sourceColId);
+            const destCol = columns.find(col => col.id === destColId);
+            
+            if (!sourceCol || !destCol) return;
 
-        if (sourceColId === destColId) {
-            sourceTasks.splice(destination.index, 0, movedTask);
-            setColumns(columns.map(col => col.id === sourceColId ? { ...col, tasks: sourceTasks } : col));
+            const sourceTasks = Array.from(sourceCol.tasks);
+            const [movedTask] = sourceTasks.splice(source.index, 1);
 
-            try {
-                await columnService.reorderTasks(projectId, sourceColId, sourceTasks.map(t => t.id));
-            } catch (error) {
-                console.error("Error reordering tasks:", error);
-                setErrorMessage("Could not update task positions");
-            }
-        } else {
-            const destTasks = Array.from(destCol.tasks);
-            destTasks.splice(destination.index, 0, movedTask);
+            if (sourceColId === destColId) {
+                sourceTasks.splice(destination.index, 0, movedTask);
+                setColumns(columns.map(col => col.id === sourceColId ? { ...col, tasks: sourceTasks } : col));
 
-            setColumns(columns.map(col => {
-                if (col.id === sourceColId) return { ...col, tasks: sourceTasks };
-                if (col.id === destColId) return { ...col, tasks: destTasks };
-                return col;
-            }));
+                try {
+                    await columnService.reorderTasks(projectId, sourceColId, sourceTasks.map(t => t.id));
+                } catch (error) {
+                    console.error("Error reordering tasks:", error);
+                    setErrorMessage("Could not update task positions");
+                }
+            } else {
+                const destTasks = Array.from(destCol.tasks);
+                destTasks.splice(destination.index, 0, movedTask);
 
-            try {
-                await taskService.moveTask(movedTask.id, destColId);
-                await columnService.reorderTasks(projectId, destColId, destTasks.map(t => t.id));
-            } catch (error) {
-                console.error("Error moving task:", error);
-                setErrorMessage("Could not update task position");
+                setColumns(columns.map(col => {
+                    if (col.id === sourceColId) return { ...col, tasks: sourceTasks };
+                    if (col.id === destColId) return { ...col, tasks: destTasks };
+                    return col;
+                }));
+
+                try {
+                    await taskService.moveTask(movedTask.id, destColId);
+                    await columnService.reorderTasks(projectId, destColId, destTasks.map(t => t.id));
+                } catch (error) {
+                    console.error("Error moving task:", error);
+                    setErrorMessage("Could not update task position");
+                }
             }
         }
     };
