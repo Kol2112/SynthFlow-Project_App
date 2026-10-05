@@ -52,7 +52,12 @@ export default function ProjectKanbanView({
                     {columns.map((column, index) => (
                         <Draggable key={column.id} draggableId={`col-${column.id}`} index={index}>
                             {(draggableProvided) => (
-                                <div className="kanbanColumn" ref={draggableProvided.innerRef} {...draggableProvided.draggableProps}>
+                                <div 
+                                    className="kanbanColumn" 
+                                    ref={draggableProvided.innerRef} 
+                                    {...draggableProvided.draggableProps}
+                                >
+                                    {/* TYLKO NAGŁÓWEK POZWALA NA PRZECIĄGANIE KOLUMNY */}
                                     <div className="columnHeader" {...draggableProvided.dragHandleProps}>
                                         <span className="columnTitle">{column.name}</span>
                                         
@@ -71,16 +76,27 @@ export default function ProjectKanbanView({
                                         </div>
                                     </div>
 
-                                    <Droppable droppableId={String(column.id)} type="task">
+                                    {/* DROPPABLE ZADAŃ Z UNIKALNYM PREFIXEM */}
+                                    <Droppable droppableId={`task-list-${column.id}`} type="task">
                                         {(droppableProvided) => (
                                             <div className="tasksContainer" ref={droppableProvided.innerRef} {...droppableProvided.droppableProps}>
                                                 {column.tasks && column.tasks.map((task, taskIndex) => (
                                                     <Draggable key={task.id} draggableId={`task-${task.id}`} index={taskIndex}>
                                                         {(taskDraggableProvided) => (
-                                                            <div className="taskCard" ref={taskDraggableProvided.innerRef} {...taskDraggableProvided.draggableProps} {...taskDraggableProvided.dragHandleProps}>
+                                                            /* ZADANIE MOŻNA CHWYCIĆ W BAZOWEJ KARCIE ZADANIA */
+                                                            <div 
+                                                                className="taskCard" 
+                                                                ref={taskDraggableProvided.innerRef} 
+                                                                {...taskDraggableProvided.draggableProps}
+                                                                {...taskDraggableProvided.dragHandleProps}
+                                                            >
                                                                 <div className="taskTopRow">
                                                                     <div className="taskTitleGroup">
-                                                                        <span onClick={(e) => handleCopyId(e, task.id)} title="Click to copy task ID for commit" className={`taskIdBadge ${copiedId === task.id ? 'copied' : ''}`}>
+                                                                        <span 
+                                                                            onClick={(e) => handleCopyId(e, task.id)} 
+                                                                            title="Click to copy task ID for commit" 
+                                                                            className={`taskIdBadge ${copiedId === task.id ? 'copied' : ''}`}
+                                                                        >
                                                                             {copiedId === task.id ? 'Copied!' : `#${task.id}`}
                                                                         </span>
                                                                         <span className="taskName">{task.name}</span>
