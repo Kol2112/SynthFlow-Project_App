@@ -385,6 +385,7 @@ export default function ProjectDetailsPage() {
         }
 
         const parseColId = (id) => parseInt(String(id).replace(/^task-list-/, ''), 10);
+
         const sourceColId = parseColId(source.droppableId);
         const destColId = parseColId(destination.droppableId);
 
