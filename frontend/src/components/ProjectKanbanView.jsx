@@ -52,12 +52,7 @@ export default function ProjectKanbanView({
                     {columns.map((column, index) => (
                         <Draggable key={column.id} draggableId={`col-${column.id}`} index={index}>
                             {(draggableProvided) => (
-                                <div 
-                                    className="kanbanColumn" 
-                                    ref={draggableProvided.innerRef} 
-                                    {...draggableProvided.draggableProps}
-                                >
-                                    {/* TYLKO NAGŁÓWEK POZWALA NA PRZECIĄGANIE KOLUMNY */}
+                                <div className="kanbanColumn" ref={draggableProvided.innerRef} {...draggableProvided.draggableProps}>
                                     <div className="columnHeader" {...draggableProvided.dragHandleProps}>
                                         <span className="columnTitle">{column.name}</span>
                                         
@@ -66,7 +61,9 @@ export default function ProjectKanbanView({
                                             setActiveColumnDropdown(activeColumnDropdown === column.id ? null : column.id);
                                             setActiveTaskDropdown(null);
                                         }}>
-                                            <button className="columnOptionsBtn"><IoEllipsisHorizontal /></button>
+                                            <button className="columnOptionsBtn" onMouseDown={(e) => e.stopPropagation()}>
+                                                <IoEllipsisHorizontal />
+                                            </button>
                                             {activeColumnDropdown === column.id && (
                                                 <ul className="dropdownElementsContainer">
                                                     <li onClick={() => onRenameListModal(column)}>Rename</li>
@@ -76,27 +73,16 @@ export default function ProjectKanbanView({
                                         </div>
                                     </div>
 
-                                    {/* DROPPABLE ZADAŃ Z UNIKALNYM PREFIXEM */}
                                     <Droppable droppableId={`task-list-${column.id}`} type="task">
                                         {(droppableProvided) => (
                                             <div className="tasksContainer" ref={droppableProvided.innerRef} {...droppableProvided.droppableProps}>
                                                 {column.tasks && column.tasks.map((task, taskIndex) => (
                                                     <Draggable key={task.id} draggableId={`task-${task.id}`} index={taskIndex}>
                                                         {(taskDraggableProvided) => (
-                                                            /* ZADANIE MOŻNA CHWYCIĆ W BAZOWEJ KARCIE ZADANIA */
-                                                            <div 
-                                                                className="taskCard" 
-                                                                ref={taskDraggableProvided.innerRef} 
-                                                                {...taskDraggableProvided.draggableProps}
-                                                                {...taskDraggableProvided.dragHandleProps}
-                                                            >
+                                                            <div className="taskCard" ref={taskDraggableProvided.innerRef} {...taskDraggableProvided.draggableProps}{...taskDraggableProvided.dragHandleProps}>
                                                                 <div className="taskTopRow">
                                                                     <div className="taskTitleGroup">
-                                                                        <span 
-                                                                            onClick={(e) => handleCopyId(e, task.id)} 
-                                                                            title="Click to copy task ID for commit" 
-                                                                            className={`taskIdBadge ${copiedId === task.id ? 'copied' : ''}`}
-                                                                        >
+                                                                        <span onClick={(e) => handleCopyId(e, task.id)} title="Click to copy task ID for commit" className={`taskIdBadge ${copiedId === task.id ? 'copied' : ''}`}>
                                                                             {copiedId === task.id ? 'Copied!' : `#${task.id}`}
                                                                         </span>
                                                                         <span className="taskName">{task.name}</span>
@@ -107,11 +93,12 @@ export default function ProjectKanbanView({
                                                                         setActiveTaskDropdown(activeTaskDropdown === task.id ? null : task.id);
                                                                         setActiveColumnDropdown(null);
                                                                     }}>
-                                                                        <button className="taskOptionsBtn"><IoEllipsisHorizontal /></button>
+                                                                        <button className="taskOptionsBtn" onMouseDown={(e) => e.stopPropagation()}>
+                                                                            <IoEllipsisHorizontal />
+                                                                        </button>
                                                                         {activeTaskDropdown === task.id && (
                                                                             <ul className="dropdownElementsContainer">
                                                                                 <li onClick={() => onOpenEditTaskModal(column.id, task)}>Edit</li>
-                                                                                
                                                                                 <li className="moveSubmenuTrigger" onClick={(e) => e.stopPropagation()}>
                                                                                     <span>Move to</span>
                                                                                     <ul className="submenuContainer">
@@ -120,12 +107,8 @@ export default function ProjectKanbanView({
                                                                                                 {destCol.name}
                                                                                             </li>
                                                                                         ))}
-                                                                                        {columns.filter(col => col.id !== column.id).length === 0 && (
-                                                                                            <li className="disabledOption">Brak innych list</li>
-                                                                                        )}
                                                                                     </ul>
                                                                                 </li>
-
                                                                                 <li onClick={() => onDeleteTask(column.id, task.id)}><span className='warning'>Delete</span></li>
                                                                             </ul>
                                                                         )}
@@ -144,9 +127,7 @@ export default function ProjectKanbanView({
                                                                             <span className="avatarText">Only you</span>
                                                                         </div>
                                                                     </div>
-                                                                    <div 
-                                                                        className={`taskStatusCheckCircle ${task.progress === 100 ? 'completed' : ''}`} 
-                                                                        onClick={(e) => {
+                                                                    <div className={`taskStatusCheckCircle ${task.progress === 100 ? 'completed' : ''}`} onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             onToggleTaskComplete(column.id, task.id, task.progress === 100);
                                                                         }}
