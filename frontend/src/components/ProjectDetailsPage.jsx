@@ -274,7 +274,10 @@ export default function ProjectDetailsPage() {
                 priority: modalForm.priority,
                 start_date: modalForm.startDate || null,
                 deadline: modalForm.deadline || null,
-                github_repo: modalForm.githubRepo || null
+                assignee_id: assigneeIds[0] || null,
+                assignee_ids: assigneeIds,
+                assignees: modalForm.assignees || [],
+                subtasks: modalForm.subtasks || []
             };
 
             try {
@@ -364,6 +367,7 @@ export default function ProjectDetailsPage() {
     const handleOnDragEnd = async (result) => {
         const { destination, source, type } = result;
         if (!destination) return;
+        
         if (destination.droppableId === source.droppableId && destination.index === source.index) {
             return;
         }

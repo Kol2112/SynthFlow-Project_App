@@ -2,10 +2,21 @@ import { useState } from 'react';
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import { IoEllipsisHorizontal } from "react-icons/io5";
 import { FaRegCalendar } from "react-icons/fa";
-import {isOverdue } from "./helperFunctions.js";
+import { isOverdue } from "./helperFunctions.js";
 import RenderAvatars from './RenderAvatars.jsx';
 
-export default function TasksContainer({ column, columns, activeTaskDropdown, setActiveTaskDropdown, setActiveColumnDropdown, onOpenEditTaskModal, onMoveTask, onDeleteTask, onToggleTaskComplete, getTaskAssignees }) {
+export default function TasksContainer({ 
+    column, 
+    columns, 
+    activeTaskDropdown, 
+    setActiveTaskDropdown, 
+    setActiveColumnDropdown, 
+    onOpenEditTaskModal, 
+    onMoveTask, 
+    onDeleteTask, 
+    onToggleTaskComplete, 
+    getTaskAssignees 
+}) {
     const [copiedId, setCopiedId] = useState(null);
 
     const handleCopyId = (e, taskId) => {
@@ -16,31 +27,34 @@ export default function TasksContainer({ column, columns, activeTaskDropdown, se
     };
 
     return (
-        <Droppable droppableId={String(column.id)} type="task">
+        <Droppable droppableId={`task-list-${column.id}`} type="task">
             {(droppableProvided) => (
                 <div className="tasksContainer" ref={droppableProvided.innerRef} {...droppableProvided.droppableProps}>
                     {column.tasks && column.tasks.map((task, taskIndex) => {
-                        const taskAssignees = getTaskAssignees(task);
+                        const taskAssignees = getTaskAssignees ? getTaskAssignees(task) : [];
                         const overdue = isOverdue(task.date);
 
                         return (
-                            <Draggable key={task.id} draggableId={String(task.id)} index={taskIndex}>
+                            <Draggable key={task.id} draggableId={`task-${task.id}`} index={taskIndex}>
                                 {(taskDraggableProvided) => (
-                                    <div className="taskCard" ref={taskDraggableProvided.innerRef} {...taskDraggableProvided.draggableProps} {...taskDraggableProvided.dragHandleProps}>
-                                        <div className="taskTopRow">
+                                    <div className="taskCard" ref={taskDraggableProvided.innerRef} {...taskDraggableProvided.draggableProps}>
+                                        <div className="taskTopRow" {...taskDraggableProvided.dragHandleProps}>
                                             <div className="taskTitleGroup">
-                                                <span 
-                                                    onClick={(e) => handleCopyId(e, task.id)}
-                                                    title="Click to copy task ID for commit"
-                                                    className={`taskIdBadge ${copiedId === task.id ? 'copied' : ''}`}
-                                                >
+                                                <span onClick={(e) => handleCopyId(e, task.id)}title="Click to copy task ID for commit"className={`taskIdBadge ${copiedId === task.id ? 'copied' : ''}`}>
                                                     {copiedId === task.id ? 'Copied!' : `#${task.id}`}
                                                 </span>
                                                 <span className="taskName" title={task.name}>{task.name}</span>
                                             </div>
                                             
-                                            <div className="dropdown" onClick={(e) => { e.stopPropagation(); setActiveTaskDropdown(activeTaskDropdown === task.id ? null : task.id); setActiveColumnDropdown(null); }}>
-                                                <button className="taskOptionsBtn"><IoEllipsisHorizontal /></button>
+                                            <div className="dropdown" onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    setActiveTaskDropdown(activeTaskDropdown === task.id ? null : task.id); 
+                                                    setActiveColumnDropdown(null); 
+                                                }}
+                                            >
+                                                <button className="taskOptionsBtn" onMouseDown={(e) => e.stopPropagation()}>
+                                                    <IoEllipsisHorizontal />
+                                                </button>
                                                 {activeTaskDropdown === task.id && (
                                                     <ul className="dropdownElementsContainer">
                                                         <li onClick={() => onOpenEditTaskModal(column.id, task)}>Edit</li>
@@ -49,22 +63,24 @@ export default function TasksContainer({ column, columns, activeTaskDropdown, se
                                                             <span>Move to</span>
                                                             <ul className="submenuContainer">
                                                                 {columns.filter(col => col.id !== column.id).map(destCol => (
-                                                                        <li key={destCol.id} onClick={() => onMoveTask(task.id, column.id, destCol.id)}>
-                                                                            {destCol.name}
-                                                                        </li>
-                                                                    ))
-                                                                }
+                                                                    <li key={destCol.id} onClick={() => onMoveTask(task.id, column.id, destCol.id)}>
+                                                                        {destCol.name}
+                                                                    </li>
+                                                                ))}
                                                                 {columns.filter(col => col.id !== column.id).length === 0 && (
                                                                     <li className="disabledOption">No other lists</li>
                                                                 )}
                                                             </ul>
                                                         </li>
 
-                                                        <li onClick={() => onDeleteTask(column.id, task.id)}><span className='warning'>Delete</span></li>
+                                                        <li onClick={() => onDeleteTask(column.id, task.id)}>
+                                                            <span className='warning'>Delete</span>
+                                                        </li>
                                                     </ul>
                                                 )}
                                             </div>
                                         </div>
+
                                         <div className="taskMetaRow">
                                             <div className={`taskDateBlock ${overdue ? 'warning' : ''}`}>
                                                 <FaRegCalendar className="calendarIcon" />
@@ -72,16 +88,18 @@ export default function TasksContainer({ column, columns, activeTaskDropdown, se
                                             </div>
                                             <span className="progressPct">{task.progress}%</span>
                                         </div>
+
                                         <div className="taskBottomRow">
                                             <div className="taskAssignees">
-                                                <RenderAvatars members={taskAssignees} maxCount={6} />
+                                                <RenderAvatars members={taskAssignees} maxCount={4} />
                                             </div>
                                             <div className={`taskStatusCheckCircle ${task.progress === 100 ? 'completed' : ''}`} 
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     onToggleTaskComplete(column.id, task.id, task.progress === 100);
                                                 }}
-                                                title={task.progress === 100 ? "Mark as uncompleted" : "Mark as completed"}>
+                                                title={task.progress === 100 ? "Mark as uncompleted" : "Mark as completed"}
+                                            >
                                                 {task.progress === 100 && (
                                                     <svg className="checkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                                         <polyline points="20 6 9 17 4 12"></polyline>

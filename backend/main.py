@@ -38,7 +38,7 @@ pending_changes = {}
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:4173").rstrip("/")
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
