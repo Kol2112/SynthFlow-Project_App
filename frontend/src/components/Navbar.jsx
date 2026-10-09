@@ -197,7 +197,7 @@ export default function Navbar() {
                         <img 
                             src={avatarUrl} 
                             alt="Account" 
-                            className="navAvatar"
+                            className="profile"
                             onClick={() => setIsOpen(!isOpen)} 
                         />
                     ) : (
